@@ -1,0 +1,6 @@
+{
+  "name": "Abhiram Portfolio",
+  "description": "Full-stack personal portfolio platform for Tekulapalli Abhiram, an AI/ML developer.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
