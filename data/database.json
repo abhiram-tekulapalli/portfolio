@@ -1,5 +1,5 @@
 {
-  "adminHash": "$2b$12$dtivgUK/qIN36ncqqah5XO9619uh3T1IySigcUsCluc3YpRFARpAS",
+  "adminHash": "$2b$12$JrQL6UoJ83oK8aXAWuvBUup8ZkR5lmCqOqmVymJcrOS.y/2xPDJDm",
   "hero": {
     "name": "Tekulapalli Abhiram",
     "taglines": [
@@ -9,11 +9,11 @@
       "Problem Solver"
     ],
     "bio": "B.Tech Computer Science student specializing in Artificial Intelligence and Machine Learning. Passionate about engineering production-grade intelligent software, deep learning architectures, and scalable web platforms.",
-    "resumeUrl": "https://drive.google.com/file/d/1XexampleResumeURL/view",
+    "resumeUrl": "/resume.pdf",
     "availabilityStatus": true,
     "socials": {
-      "github": "https://github.com/abhiram-tp",
-      "linkedin": "https://linkedin.com/in/tekula-palli-abhiram",
+      "github": "https://github.com/pokephantom98765",
+      "linkedin": "https://linkedin.com/in/tekulapalli-abhiram",
       "instagram": "https://instagram.com/abhiram_tp",
       "email": "pokephantom98765@gmail.com",
       "twitter": "https://twitter.com/abhiram_tp"
@@ -24,7 +24,7 @@
     "terminalLines": [
       {
         "command": "whoami",
-        "output": "tekulapalli-abhiram"
+        "output": "Tekulapalli-Abhiram"
       },
       {
         "command": "cat role.txt",
@@ -44,24 +44,24 @@
       },
       {
         "command": "git log --oneline -n 1",
-        "output": "1a2b3c4 - Initialized portfolio with premium Swiss Brutalist UI/UX - Tekulapalli Abhiram"
+        "output": "1a2b3c4 - Initialized portfolio"
       }
     ],
     "stats": [
       {
-        "value": "12+",
+        "value": "8+",
         "label": "Projects Completed"
       },
       {
-        "value": "8+",
+        "value": "10+",
         "label": "Certifications"
       },
       {
-        "value": "500+",
+        "value": "100+",
         "label": "GitHub Commits"
       },
       {
-        "value": "250+",
+        "value": "100+",
         "label": "DSA Problems Solved"
       }
     ]
@@ -110,12 +110,6 @@
       "order": 2
     },
     {
-      "id": "a2",
-      "name": "Keras",
-      "category": "AI/ML",
-      "order": 2
-    },
-    {
       "id": "d2",
       "name": "MySQL",
       "category": "Databases",
@@ -156,12 +150,6 @@
       "name": "Figma",
       "category": "Tools",
       "order": 3
-    },
-    {
-      "id": "s4",
-      "name": "TypeScript",
-      "category": "Languages",
-      "order": 4
     },
     {
       "id": "f4",
@@ -216,218 +204,74 @@
       "name": "OpenCV",
       "category": "AI/ML",
       "order": 6
-    }
-  ],
-  "projects": [
-    {
-      "id": "p1",
-      "title": "Pneumonia-Vision Diagnostic AI",
-      "description": "A highly robust deep learning pipeline using PyTorch/Keras to scan, load, and classify chest X-ray images into Pneumonia vs Normal classes. Implemented a custom CNN architecture achieving 96.2% accuracy. Designed a reactive React/Vite dashboard allowing pathologists to upload X-rays and preview real-time grad-CAM localization heatmaps.",
-      "techStack": [
-        "Python",
-        "TensorFlow",
-        "Keras",
-        "React",
-        "Node.js",
-        "OpenCV"
-      ],
-      "category": "AI/ML",
-      "githubUrl": "https://github.com/abhiram-tp/pneumonia-vision-ai",
-      "liveUrl": "https://pneumonia-vision.live-demo.io",
-      "featured": true,
-      "order": 1
     },
     {
-      "id": "p2",
-      "title": "QuantFlow Portfolio Optimizer",
-      "description": "A full-stack, responsive investment analysis engine. It processes user asset allocations, gathers historical trading prices via the AlphaVantage API, constructs mean-variance portfolios, and plots efficient frontiers. Features high-speed REST endpoints, JWT-secured auth, and SVG-drawn custom interactive investment charts.",
-      "techStack": [
-        "React",
-        "TypeScript",
-        "Node.js",
-        "Express",
-        "SQLite",
-        "Tailwind CSS"
-      ],
-      "category": "Web",
-      "githubUrl": "https://github.com/abhiram-tp/quant-flow",
-      "liveUrl": "https://quantflow.abhiram.dev",
-      "featured": true,
-      "order": 2
+      "id": "sk_18j5h1t26",
+      "name": "Flask",
+      "category": "Frameworks",
+      "order": 6
     },
     {
-      "id": "p3",
-      "title": "Aura AI: Personal Desktop Orchestrator",
-      "description": "An AI-powered voice assistant capable of running completely offline using local Whisper speech recognition and Llama-cpp-python. Features automated scheduling, calendar updates, files management, smart home simulation, and fully customizable Python script plugins.",
-      "techStack": [
-        "Python",
-        "Whisper-API",
-        "Llama-3",
-        "Tkinter",
-        "OS-Library"
-      ],
+      "id": "sk_6423thqt8",
+      "name": "Vercel",
       "category": "Tools",
-      "githubUrl": "https://github.com/abhiram-tp/aura-voice-assistant",
-      "liveUrl": "",
-      "featured": false,
-      "order": 3
+      "order": 6
     },
     {
-      "id": "p4",
-      "title": "ScribeAI Meeting Notes Summarizer",
-      "description": "A secure web platform utilizing general-purpose server-side SDKs to process audio and transcripts of meeting notes. Integrates Gemini 3.5 Flash to automatically detect speakers, organize action plans, extract critical dates, and export formatted meeting minutes directly to Slack standard formats.",
-      "techStack": [
-        "React",
-        "Express",
-        "Vite",
-        "Gemini-API",
-        "Web-Audio",
-        "Tailwind"
-      ],
-      "category": "AI/ML",
-      "githubUrl": "https://github.com/abhiram-tp/scribe-ai-notes",
-      "liveUrl": "https://scribeai.abhiram.dev",
-      "featured": true,
-      "order": 4
+      "id": "sk_08r3k8jtu",
+      "name": "Colab and Jupyter Notebook",
+      "category": "Tools",
+      "order": 7
     }
   ],
-  "certifications": [
-    {
-      "id": "c1",
-      "title": "Deep Learning Specialization",
-      "issuer": "DeepLearning.AI (Coursera)",
-      "dateIssued": "2025-01-15",
-      "credentialId": "DL-9988-ABC",
-      "certificateUrl": "https://coursera.org/verify/dl-specialization",
-      "order": 1
-    },
-    {
-      "id": "c2",
-      "title": "Google Cloud Associate Cloud Engineer",
-      "issuer": "Google Cloud",
-      "dateIssued": "2025-03-10",
-      "credentialId": "GCP-ACE-7762",
-      "certificateUrl": "https://credential.net/gcp-ace",
-      "order": 2
-    },
-    {
-      "id": "c3",
-      "title": "TensorFlow Developer Certificate",
-      "issuer": "Coursera",
-      "dateIssued": "2024-11-05",
-      "credentialId": "TF-DEV-3341",
-      "certificateUrl": "https://coursera.org/verify/tensorflow-dev",
-      "order": 3
-    }
-  ],
+  "projects": [],
+  "certifications": [],
   "experience": [
     {
-      "id": "e1",
-      "role": "AI Developer Intern",
-      "company": "TechSpark Solutions",
+      "role": "Delegate Training and Orientations Intern",
+      "company": "Prayaas – UNICE Foundation",
       "type": "Internship",
-      "startDate": "2025-01-01",
-      "endDate": "Present",
-      "current": true,
+      "companyUrl": "#",
+      "startDate": "May 2025",
+      "endDate": "Sep 2025",
+      "current": false,
       "responsibilities": [
-        "Developing vision-based target classifiers using YOLOv8 models for factory floor safety audits.",
-        "Refining LLM prompt chains and testing inference outputs for corporate client bots.",
-        "Building Node.js and Express REST endpoints to manage ML pipeline training queues."
+        "Contributed to micro tasks and delegation committee activities",
+        "Assisted in delegate training and orientation programs over a 16-week engagement"
       ],
-      "techUsed": [
-        "Python",
-        "YOLOv8",
-        "OpenCV",
-        "Node.js",
-        "React"
-      ],
-      "companyUrl": "https://techsparksolutions.com",
-      "order": 1
-    },
-    {
-      "id": "e2",
-      "role": "Core Technical Member",
-      "company": "BVRIT AI Club",
-      "type": "Part-time",
-      "startDate": "2024-09-01",
-      "endDate": "Present",
-      "current": true,
-      "responsibilities": [
-        "Conducting interactive weekly workshops on Git, Web Dev, and NumPy basics for 80+ active undergraduates.",
-        "Mentoring first-year computer engineering cohorts in C++ data structures and algorithm design.",
-        "Developing the official open-source hackathon registration platform for college hack events."
-      ],
-      "techUsed": [
-        "React",
-        "TypeScript",
-        "Tailwind CSS",
-        "MongoDB",
-        "C++"
-      ],
-      "companyUrl": "https://bvrit.ac.in",
-      "order": 2
+      "techUsed": [],
+      "order": 1,
+      "id": "ex_ay2b5wcmc"
     }
   ],
   "education": [
     {
-      "id": "ed1",
       "institution": "BVRIT Narsapur",
-      "degree": "Bachelor of Technology",
-      "field": "Computer Science and Engineering (AI & ML)",
-      "degreeAbbr": "B.Tech CSE (AI/ML)",
+      "degree": "Bachelor  Of Technology",
+      "degreeAbbr": "B.Tech",
+      "field": "Computer Science Engineering With Specialization in AI and ML",
       "startYear": 2024,
       "endYear": 2028,
       "current": true,
-      "score": "9.12 CGPA",
+      "score": "8.14",
       "scoreType": "CGPA",
       "coursework": [
-        "Data Structures and Algorithms",
-        "Design and Analysis of Algorithms",
-        "Artificial Intelligence & Machine Learning Foundations",
-        "Linear Algebra & Multivariable Calculus",
-        "Object Oriented Programming through Java"
+        "Machine Learning",
+        "Data Structures & Algorithms",
+        "Database Management Systems",
+        "Operating Systems",
+        "Digital Electronics",
+        "Compiler Design",
+        "Computer Networks"
       ],
       "achievements": [
-        "Department rank #2 in current CSE academic semesters.",
-        "First-place award at the intra-university DeepTech Hackathon 2025."
+        "Research paper on Advertisement Platform Recommendation System submitted to SASIGD 2026, EdgeGuard submitted to Tata Technologies InnoVent 2026-27, Samsung Solve for Tomorrow 2026 participant, Andrew Ng ML Specialization, Google AI Essentials, Google Prompting Essentials, Google Generative AI Leader, Microsoft AI Skills Fest 2026"
       ],
-      "order": 1
+      "order": 1,
+      "id": "ed_m7t7qfivs"
     }
   ],
-  "blogs": [
-    {
-      "id": "b2",
-      "title": "Deep Learning Demystified: Constructing CNNs with PyTorch",
-      "slug": "deep-learning-demystified-constructing-cnns-pytorch",
-      "excerpt": "Step-by-step mathematical guide to building convolutional neural networks (CNNs), understanding pooling kernels, and tuning hyperparameters for custom vision diagnostics.",
-      "content": "# Understanding Convolutional Architectures\n\nConvolutional Neural Networks (CNNs) emulate mammalian biological vision workflows. Instead of fully connected layers analyzing static flattened pixels, CNNs extract feature kernels locally.\n\n## The Math Behind a Kernels Multiplier\nLet $I$ represent the input matrix and $K$ denote the convolutional filter kernel of size $m \\times n$. The output feature map element $S(i,j)$ is mathematically derived as:\n\n$$S(i,j) = (I * K)(i,j) = \\sum_{m} \\sum_{n} I(i-m, j-n) K(m,n)$$\n\n## Building in Python\n\nHere is a typical clean PyTorch structure for mapping diagnostic chest scans:\n\n```python\nimport torch\nimport torch.nn as nn\nimport torch.nn.functional as F\n\nclass PneumoniaNet(nn.Module):\n    def __init__(self):\n        super(PneumoniaNet, self).__init__()\n        self.conv1 = nn.Conv2d(1, 32, kernel_size=3, padding=1)\n        self.pool = nn.MaxPool2d(2, 2)\n        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)\n        self.fc1 = nn.Linear(64 * 56 * 56, 128)\n        self.fc2 = nn.Linear(128, 2) # Binary: Normal vs Pneumonia\n\n    def forward(self, x):\n        x = self.pool(F.relu(self.conv1(x)))\n        x = self.pool(F.relu(self.conv2(x)))\n        x = x.view(-1, 64 * 56 * 56)\n        x = F.relu(self.fc1(x))\n        x = self.fc2(x)\n        return x\n```\n\nIn the next article, we will go over loading custom chest X-ray datasets from Kaggle. See you there!\n",
-      "tags": [
-        "AI/ML",
-        "Python",
-        "DeepLearning"
-      ],
-      "status": "published",
-      "readTime": 6,
-      "coverImage": "https://images.unsplash.com/photo-1507668077129-56e32842fceb?auto=format&fit=crop&w=400&q=80",
-      "publishedAt": "2026-05-28T14:30:00Z"
-    },
-    {
-      "id": "b1",
-      "title": "Building a Modern Developer Portfolio: Swiss Brutalism with React 19",
-      "slug": "building-modern-developer-portfolio-swiss-brutalism",
-      "excerpt": "Explore how Swiss typography, modular grids, monochrome aesthetics, and Framer Motion culminate into a hypercontextual, elite developer portfolio designed to land recruiter offers.",
-      "content": "# Design and Implementation of Premium Portfolios\n\nIn a digital space saturated with default dashboard templates, rounded purple gradients, and generic UI structures, stepping back to **Brutalist grid disciplines** and raw typography layout creates immediate visual contrast.\n\n## 1. Aesthetic Framework\nThe core color scheme relies on strict constraints:\n- Main page background: `#080808`\n- Card surfaced paneling: `#111111`\n- Crisp structural line borders: `#1f1f1f`\n- High-contrast typography colors: `#f2f2f2` vs `#555555`\n\nBy omitting saturated brand gradients, the developer communicates **discipline, precision, and architectural logic**.\n\n```tsx\nexport default function ProjectCard({ title, description }) {\n  return (\n    <div className=\"bg-[#111111] border border-[#1f1f1f] p-6 hover:border-[#ffffff20] transition duration-300\">\n      <h3 className=\"text-xl font-medium font-sans text-white mb-2\">{title}</h3>\n      <p className=\"text-sm font-sans text-gray-500 line-clamp-3\">{description}</p>\n    </div>\n  );\n}\n```\n\n## 2. Animation Rhythm\nMicro-interactions must remain humble. A custom cursor utilizing lerpin, subtle border expansions, and staggered translateY translations provide a reactive ecosystem for the recruiter.\n",
-      "tags": [
-        "Web",
-        "Design",
-        "React"
-      ],
-      "status": "published",
-      "readTime": 4,
-      "coverImage": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80",
-      "publishedAt": "2026-05-15T12:00:00Z"
-    }
-  ],
+  "blogs": [],
   "settings": {
     "leetcodeUsername": "Abhiram_Tekulapalli",
     "githubUsername": "pokephantom98765",
@@ -452,7 +296,7 @@
       "host": "smtp.gmail.com",
       "port": 587,
       "user": "pokephantom98765@gmail.com",
-      "pass": "",
+      "pass": "Abhiram@123",
       "fromName": "Portfolio Portal",
       "toEmail": "pokephantom98765@gmail.com"
     },
