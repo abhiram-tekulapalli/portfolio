@@ -872,6 +872,11 @@ app.post('/api/v1/resume/upload', verifyToken, (req, res) => {
     // Keep local schema synced so the CTA button guides directly to the newly hosted static `/resume.pdf` endpoint!
     db.updateHero({ resumeUrl: '/resume.pdf' });
     
+    // Save the PDF base64 to MongoDB for persistent cloud sync
+    if (typeof db.saveResumePdf === 'function') {
+      db.saveResumePdf(cleanBase64);
+    }
+    
     res.json({ success: true, url: '/resume.pdf', hero: db.getHero() });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

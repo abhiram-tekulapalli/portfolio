@@ -33,6 +33,7 @@ interface DatabaseSchema {
   education: Education[];
   blogs: Blog[];
   settings: SettingsData;
+  resumePdfBase64?: string;
 }
 
 // Dynamically generate the default password hash
@@ -441,6 +442,22 @@ class LocalDatabase {
           if (!this.data.settings) this.data.settings = INITIAL_DB.settings;
           if (!this.data.adminHash) this.data.adminHash = DEFAULT_HASH;
           
+          // Restore resume.pdf from MongoDB binary base64 if present
+          if (this.data.resumePdfBase64) {
+            try {
+              const buffer = Buffer.from(this.data.resumePdfBase64, 'base64');
+              const folderPath = path.join(process.cwd(), 'data');
+              if (!fs.existsSync(folderPath)) {
+                fs.mkdirSync(folderPath, { recursive: true });
+              }
+              const filePath = path.join(folderPath, 'resume.pdf');
+              fs.writeFileSync(filePath, buffer);
+              console.log("[DATABASE] Restored resume.pdf dynamically from MongoDB Cloud data!");
+            } catch (pdfErr) {
+              console.error("[DATABASE] Failed to write resume.pdf on startup:", pdfErr);
+            }
+          }
+          
           // Save a synchronized local disk copy to keep them aligned
           this.saveToDisk(true);
         } else {
@@ -782,6 +799,11 @@ class LocalDatabase {
       console.error("Failed to import JSON data:", err);
       return false;
     }
+  }
+
+  public saveResumePdf(base64Str: string) {
+    this.data.resumePdfBase64 = base64Str;
+    this.saveToDisk();
   }
 
   public resetToDefaults() {
