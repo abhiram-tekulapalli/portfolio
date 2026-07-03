@@ -184,7 +184,7 @@ export default function AdminConsole() {
   const handleLogout = async () => {
     await fetch('/api/v1/auth/logout', { method: 'POST' });
     setAuthenticated(false);
-    window.location.href = '/sys-void';
+    window.location.href = window.location.pathname;
   };
 
   // Feedback display helper
@@ -1195,8 +1195,8 @@ export default function AdminConsole() {
                   <input id="ncert-date" type="text" placeholder="2025-01-20" className="bg-bg-brand border border-[#2a2a2a] p-3 text-sm h-11 text-white" />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] uppercase text-text-muted">Verify URL</span>
-                  <input id="ncert-url" type="text" className="bg-bg-brand border border-[#2a2a2a] p-3 text-sm h-11 text-white" />
+                  <span className="text-[10px] uppercase text-text-muted">Verify URL / Google Drive Link</span>
+                  <input id="ncert-url" type="text" placeholder="https://drive.google.com/..." className="bg-bg-brand border border-[#2a2a2a] p-3 text-sm h-11 text-white" />
                 </div>
               </div>
               <button

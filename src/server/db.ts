@@ -6,6 +6,7 @@
 import fs from 'fs';
 import path from 'path';
 import bcryptjs from 'bcryptjs';
+import { MongoClient } from 'mongodb';
 import {
   HeroData,
   AboutData,
@@ -380,13 +381,16 @@ In the next article, we will go over loading custom chest X-ray datasets from Ka
 
 class LocalDatabase {
   private data: DatabaseSchema;
+  private mongoClient: MongoClient | null = null;
+  private mongoCollection: any = null;
 
   constructor() {
     this.data = INITIAL_DB;
     this.init();
   }
 
-  private init() {
+  private async init() {
+    // 1. Initial file loading (serves as immediate offline/dev default)
     try {
       if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -408,15 +412,72 @@ class LocalDatabase {
         this.saveToDisk();
       }
     } catch (err) {
-      console.error("Local database initialized error, using memory fallback.", err);
+      console.error("[DATABASE] Local database initialization error, using memory fallback.", err);
+    }
+
+    // 2. Dynamic MongoDB Cloud Sync
+    const mongoUri = process.env.MONGODB_URI;
+    if (mongoUri) {
+      console.log("[DATABASE] MONGODB_URI environment variable detected. Connecting to Cloud Database...");
+      try {
+        const client = new MongoClient(mongoUri);
+        await client.connect();
+        
+        const dbName = process.env.MONGODB_DB_NAME || 'portfolio_db';
+        const collectionName = process.env.MONGODB_COLLECTION_NAME || 'portfolio_data';
+        const collection = client.db(dbName).collection(collectionName);
+        
+        this.mongoClient = client;
+        this.mongoCollection = collection;
+
+        // Fetch existing cloud document
+        const cloudDoc = await collection.findOne({ _id: 'main_portfolio_db' as any });
+        if (cloudDoc) {
+          console.log("[DATABASE] Successfully loaded and synchronized database from MongoDB Atlas!");
+          const { _id, ...rest } = cloudDoc as any;
+          this.data = rest as DatabaseSchema;
+          
+          // Double-check settings and adminHash are complete
+          if (!this.data.settings) this.data.settings = INITIAL_DB.settings;
+          if (!this.data.adminHash) this.data.adminHash = DEFAULT_HASH;
+          
+          // Save a synchronized local disk copy to keep them aligned
+          this.saveToDisk(true);
+        } else {
+          console.log("[DATABASE] No existing cloud document found. Initializing initial cloud database seed...");
+          await collection.updateOne(
+            { _id: 'main_portfolio_db' as any },
+            { $set: { ...this.data } },
+            { upsert: true }
+          );
+        }
+      } catch (err) {
+        console.error("[DATABASE] Failed to connect or synchronize with MongoDB, using local fallback:", err);
+      }
+    } else {
+      console.log("[DATABASE] Running in Local Storage mode using 'data/database.json'. To persist changes on ephemeral servers (like Render or Vercel), provide 'MONGODB_URI' in environment variables.");
     }
   }
 
-  private saveToDisk() {
+  private saveToDisk(skipCloud = false) {
+    // Save to local disk
     try {
       fs.writeFileSync(DB_FILE, JSON.stringify(this.data, null, 2), 'utf-8');
     } catch (err) {
-      console.error("Failed to write database to disk:", err);
+      console.error("[DATABASE] Failed to write database to disk:", err);
+    }
+
+    // Asynchronously save to MongoDB (non-blocking)
+    if (!skipCloud && this.mongoCollection) {
+      this.mongoCollection.updateOne(
+        { _id: 'main_portfolio_db' as any },
+        { $set: { ...this.data } },
+        { upsert: true }
+      ).then(() => {
+        console.log("[DATABASE] Successfully synchronized update to cloud database!");
+      }).catch((err: any) => {
+        console.error("[DATABASE] Failed to synchronize update to cloud database:", err);
+      });
     }
   }
 

@@ -20,6 +20,7 @@ export default function App() {
         <Route path="/" element={<Portfolio />} />
         <Route path="/blog" element={<BlogListing />} />
         <Route path="/blog/:slug" element={<BlogPost />} />
+        <Route path="/admin" element={<AdminConsole />} />
         <Route path="/sys-void" element={<AdminConsole />} />
       </Routes>
     </BrowserRouter>

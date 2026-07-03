@@ -15,7 +15,7 @@ import { db } from './src/server/db.js';
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'secret_key_abhiram_tpa_772183';
 
 // Express limits and body parse
