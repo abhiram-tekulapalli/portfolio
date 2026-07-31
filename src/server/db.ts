@@ -421,8 +421,19 @@ class LocalDatabase {
     if (mongoUri) {
       console.log("[DATABASE] MONGODB_URI environment variable detected. Connecting to Cloud Database...");
       try {
-        const client = new MongoClient(mongoUri);
-        await client.connect();
+        const client = new MongoClient(mongoUri, {
+          serverSelectionTimeoutMS: 1500,
+          connectTimeoutMS: 1500,
+          socketTimeoutMS: 1500,
+        });
+
+        const connectWithTimeout = await Promise.race([
+          client.connect(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('MongoDB connection timed out after 1.5s')), 1500))
+        ]).catch((err) => {
+          throw err;
+        });
+        await connectWithTimeout;
         
         const dbName = process.env.MONGODB_DB_NAME || 'portfolio_db';
         const collectionName = process.env.MONGODB_COLLECTION_NAME || 'portfolio_data';

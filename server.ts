@@ -20,6 +20,63 @@ const JWT_SECRET = process.env.JWT_SECRET || 'secret_key_abhiram_tpa_772183';
 
 // Express limits and body parse
 app.use(express.json({ limit: '10mb' }));
+app.set('trust proxy', 1);
+
+const isHttpsRequest = (req: any) => {
+  const forwardedProto = req.headers['x-forwarded-proto'];
+  return req.secure || (typeof forwardedProto === 'string' && forwardedProto.startsWith('https'));
+};
+
+const getCookieAttributes = (req: any) => {
+  const secure = isHttpsRequest(req);
+  return secure
+    ? 'Path=/; HttpOnly; SameSite=None; Secure; Max-Age=28800'
+    : 'Path=/; HttpOnly; SameSite=Lax; Max-Age=28800';
+};
+
+const getLogoutCookieAttributes = (req: any) => {
+  const secure = isHttpsRequest(req);
+  return secure
+    ? 'Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    : 'Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT';
+};
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    process.env.FRONTEND_URL,
+    process.env.VITE_APP_URL,
+    process.env.BACKEND_URL,
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:5173'
+  ].filter(Boolean) as string[];
+
+  const isAllowedOrigin = origin && (
+    allowedOrigins.includes(origin) ||
+    origin.includes('.vercel.app') ||
+    origin.includes('.vercel.dev') ||
+    origin.includes('localhost')
+  );
+
+  if (isAllowedOrigin || !origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With');
+  }
+
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+
+  next();
+});
+
+app.get('/health', (req, res) => {
+  res.status(200).json({ ok: true, service: 'portfolio' });
+});
 
 // Helper to manually parse cookies from header
 const getCookieValue = (cookiesHeader: string | undefined, name: string): string | null => {
@@ -109,7 +166,7 @@ app.post('/api/v1/auth/login', rateLimitMiddleware(10, 1), (req: any, res: any) 
     const token = jwt.sign({ role: 'admin' }, JWT_SECRET, { expiresIn: '8h' });
     
     // Set cookie
-    res.setHeader('Set-Cookie', `admin_token=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=28800; ${process.env.NODE_ENV === 'production' ? 'Secure' : ''}`);
+    res.setHeader('Set-Cookie', `admin_token=${token}; ${getCookieAttributes(req)}`);
     return res.json({ success: true });
   } else {
     loginFailCount++;
@@ -121,7 +178,7 @@ app.post('/api/v1/auth/login', rateLimitMiddleware(10, 1), (req: any, res: any) 
 });
 
 app.post('/api/v1/auth/logout', (req, res) => {
-  res.setHeader('Set-Cookie', 'admin_token=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT');
+  res.setHeader('Set-Cookie', `admin_token=; ${getLogoutCookieAttributes(req)}`);
   res.json({ success: true });
 });
 
