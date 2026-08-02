@@ -1,6 +1,7 @@
 name: Keep Render Backend Warm
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '*/5 * * * *' # every 5 minutes
 
