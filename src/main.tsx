@@ -1,9 +1,13 @@
-import {StrictMode} from 'react';
-import {createRoot} from 'react-dom/client';
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:3000' : '')).replace(/\/$/, '');
+// Use VITE_API_BASE_URL when provided (including production) so frontend can
+// talk directly to the backend if needed. Fall back to relative `/api` in
+// production when the env var is empty.
+const envApiBase = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+const apiBaseUrl = envApiBase || (import.meta.env.DEV ? 'http://localhost:3000' : '');
 const originalFetch = window.fetch.bind(window);
 
 window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
