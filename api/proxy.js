@@ -6,10 +6,21 @@ export default async function handler(req, res) {
     });
   }
 
-  const targetPath = req.url?.replace(/^\/api/, '') || '/';
-  const targetUrl = `${backendUrl}/api${targetPath}`;
+  const url = new URL(req.url ?? '', 'http://localhost');
+  const originalPath = url.searchParams.get('path');
+  const targetPath = originalPath
+    ? `/${originalPath.replace(/^\/+/, '')}`
+    : url.pathname.replace(/^\/api/, '') || '/';
+
+  const targetUrl = new URL(`${backendUrl}/api${targetPath}`);
+  for (const [key, value] of url.searchParams) {
+    if (key === 'path') continue;
+    targetUrl.searchParams.append(key, value);
+  }
 
   try {
+    // Debug: log target URL being requested
+    console.log('[proxy] targetUrl=', targetUrl.toString());
     const headers = { ...req.headers };
     delete headers.host;
 
@@ -19,14 +30,22 @@ export default async function handler(req, res) {
         ? req.body
         : JSON.stringify(req.body ?? {});
 
-    const response = await fetch(targetUrl, {
+    const response = await fetch(targetUrl.toString(), {
       method: req.method,
       headers,
       body,
     });
 
     const contentType = response.headers.get('content-type') || '';
-    const body = await response.text();
+    const responseBody = await response.text();
+
+    // Debug: log backend response summary
+    try {
+      console.log('[proxy] backendStatus=', response.status, 'contentType=', contentType, 'bodyLength=', responseBody.length);
+      if (responseBody.length > 0) console.log('[proxy] snippet=', responseBody.slice(0, 400));
+    } catch (e) {
+      console.log('[proxy] logging-error', e && e.message);
+    }
 
     res.status(response.status);
     response.headers.forEach((value, key) => {
@@ -39,11 +58,11 @@ export default async function handler(req, res) {
 
     if (contentType.includes('application/json')) {
       res.setHeader('content-type', 'application/json');
-      return res.send(body);
+      return res.send(responseBody);
     }
 
     res.setHeader('content-type', contentType);
-    return res.send(body);
+    return res.send(responseBody);
   } catch (error) {
     return res.status(502).json({
       error: 'Proxy request failed',
