@@ -1,0 +1,17 @@
+name: Keep Render Backend Warm
+
+on:
+  schedule:
+    - cron: '*/5 * * * *' # every 5 minutes
+
+jobs:
+  ping-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Curl backend
+        run: |
+          if [ -z "${{ secrets.BACKEND_URL }}" ]; then
+            echo "BACKEND_URL secret not set"; exit 1;
+          fi
+          echo "Pinging $BACKEND_URL"
+          curl -sS --max-time 10 "$BACKEND_URL/api/v1/hero" -o /dev/null || true
