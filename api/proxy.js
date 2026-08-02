@@ -22,7 +22,15 @@ export default async function handler(req, res) {
     // Debug: log target URL being requested
     console.log('[proxy] targetUrl=', targetUrl.toString());
     const headers = { ...req.headers };
-    delete headers.host;
+    // Ensure the backend receives a Host header matching the backend URL
+    try {
+      const parsedBackend = new URL(backendUrl);
+      headers.host = parsedBackend.host;
+    } catch (e) {}
+
+    // Add forwarded headers for downstream tracing
+    headers['x-forwarded-host'] = req.headers.host || '';
+    headers['x-forwarded-proto'] = req.headers['x-forwarded-proto'] || (req.protocol || 'https');
 
     const body = ['GET', 'HEAD'].includes(req.method)
       ? undefined
@@ -37,7 +45,9 @@ export default async function handler(req, res) {
     });
 
     const contentType = response.headers.get('content-type') || '';
-    const responseBody = await response.text();
+    // Read raw bytes and forward as-is to preserve content and length
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
     // Debug: log backend response summary
     try {
@@ -49,20 +59,19 @@ export default async function handler(req, res) {
 
     res.status(response.status);
     response.headers.forEach((value, key) => {
+      // Forward Set-Cookie and other relevant headers
       if (key.toLowerCase() === 'set-cookie') {
         res.setHeader(key, value);
-      } else if (!['content-length', 'transfer-encoding'].includes(key.toLowerCase())) {
+      } else if (!['transfer-encoding'].includes(key.toLowerCase())) {
         res.setHeader(key, value);
       }
     });
 
-    if (contentType.includes('application/json')) {
-      res.setHeader('content-type', 'application/json');
-      return res.send(responseBody);
-    }
-
-    res.setHeader('content-type', contentType);
-    return res.send(responseBody);
+    // Ensure content-length is set correctly for the proxied body
+    res.setHeader('content-length', String(buffer.length));
+    if (contentType) res.setHeader('content-type', contentType);
+    // Send raw buffer
+    return res.send(buffer);
   } catch (error) {
     return res.status(502).json({
       error: 'Proxy request failed',
