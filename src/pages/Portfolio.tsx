@@ -361,49 +361,63 @@ export default function Portfolio() {
   const [contactForm, setContactForm] = useState({ name: '', email: '', subject: '', message: '' });
   const [contactState, setContactState] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
 
-  // Load all DB elements on Mount safely & independently
+  // Load all DB elements on Mount using a single hydrate endpoint (cached server-side)
   useEffect(() => {
-    const loadState = async (url: string, setter: (data: any) => void, key?: keyof typeof loading) => {
+    let mounted = true;
+
+    const loadHydrate = async () => {
       try {
-        const res = await fetch(url);
+        const res = await fetch('/api/v1/hydrate');
+        if (!mounted) return;
         if (res.ok) {
           const data = await res.json();
-          setter(data);
+          setHero(data.hero || null);
+          setAbout(data.about || null);
+          setSkills(data.skills || []);
+          setProjects(data.projects || []);
+          setCertifications(data.certifications || []);
+          setExperience(data.experience || []);
+          setEducation(data.education || []);
+          setBlogs(data.blogs || []);
+          setSettings(data.settings || null);
+          if (data.leetcode) setLeetcode(data.leetcode);
+          if (data.github) setGithub(data.github);
+
+          setLoading({
+            hero: false,
+            about: false,
+            skills: false,
+            projects: false,
+            certifications: false,
+            experience: false,
+            education: false,
+            blogs: false,
+            leetcode: false,
+            github: false,
+            settings: false
+          });
         } else {
-          console.warn(`Failed to load ${url}: ${res.statusText}`);
+          console.warn('Hydrate failed:', res.statusText);
+          setLoading(prev => ({ ...prev, hero: false, about: false, skills: false, projects: false, certifications: false, experience: false, education: false, blogs: false, leetcode: false, github: false, settings: false }));
         }
       } catch (err) {
-        console.error(`Error loading state from ${url}:`, err);
-      } finally {
-        if (key) {
-          setLoading(prev => ({ ...prev, [key]: false }));
-        }
+        console.error('Hydrate error', err);
+        setLoading(prev => ({ ...prev, hero: false, about: false, skills: false, projects: false, certifications: false, experience: false, education: false, blogs: false, leetcode: false, github: false, settings: false }));
       }
     };
 
-    // Trigger independent loads concurrently
-    loadState('/api/v1/hero', setHero, 'hero');
-    loadState('/api/v1/about', setAbout, 'about');
-    loadState('/api/v1/skills', setSkills, 'skills');
-    loadState('/api/v1/projects', setProjects, 'projects');
-    loadState('/api/v1/certifications', setCertifications, 'certifications');
-    loadState('/api/v1/experience', setExperience, 'experience');
-    loadState('/api/v1/education', setEducation, 'education');
-    loadState('/api/v1/blogs', setBlogs, 'blogs');
-    loadState('/api/v1/settings', setSettings, 'settings');
-    loadState('/api/v1/integrations/leetcode', setLeetcode, 'leetcode');
-    loadState('/api/v1/integrations/github', setGithub, 'github');
+    loadHydrate();
 
-    // Scroll tip hiding handler
     const scrollHandler = () => {
-      if (window.scrollY > 120) {
-        setShowScrollTip(false);
-      } else {
-        setShowScrollTip(true);
-      }
+      if (window.scrollY > 120) setShowScrollTip(false);
+      else setShowScrollTip(true);
     };
     window.addEventListener('scroll', scrollHandler);
-    return () => window.removeEventListener('scroll', scrollHandler);
+
+    return () => {
+      mounted = false;
+      window.removeEventListener('scroll', scrollHandler);
+    };
   }, []);
 
   // Contact form submission
