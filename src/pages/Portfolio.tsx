@@ -361,9 +361,42 @@ export default function Portfolio() {
   const [contactForm, setContactForm] = useState({ name: '', email: '', subject: '', message: '' });
   const [contactState, setContactState] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
 
-  // Load all DB elements on Mount using a single hydrate endpoint (cached server-side)
+  // Load all DB elements on Mount: prefer `/api/v1/hydrate`, fallback to parallel loads if missing
   useEffect(() => {
     let mounted = true;
+
+    const loadState = async (url: string, setter: (data: any) => void, key?: keyof typeof loading) => {
+      try {
+        const res = await fetch(url);
+        if (!mounted) return;
+        if (res.ok) {
+          const data = await res.json();
+          setter(data);
+        } else {
+          console.warn(`Failed to load ${url}: ${res.statusText}`);
+        }
+      } catch (err) {
+        console.error(`Error loading state from ${url}:`, err);
+      } finally {
+        if (key) setLoading(prev => ({ ...prev, [key]: false }));
+      }
+    };
+
+    const fallbackParallelLoads = async () => {
+      await Promise.all([
+        loadState('/api/v1/hero', setHero, 'hero'),
+        loadState('/api/v1/about', setAbout, 'about'),
+        loadState('/api/v1/skills', setSkills, 'skills'),
+        loadState('/api/v1/projects', setProjects, 'projects'),
+        loadState('/api/v1/certifications', setCertifications, 'certifications'),
+        loadState('/api/v1/experience', setExperience, 'experience'),
+        loadState('/api/v1/education', setEducation, 'education'),
+        loadState('/api/v1/blogs', setBlogs, 'blogs'),
+        loadState('/api/v1/settings', setSettings, 'settings'),
+        loadState('/api/v1/integrations/leetcode', setLeetcode, 'leetcode'),
+        loadState('/api/v1/integrations/github', setGithub, 'github')
+      ]);
+    };
 
     const loadHydrate = async () => {
       try {
@@ -396,14 +429,16 @@ export default function Portfolio() {
             github: false,
             settings: false
           });
-        } else {
-          console.warn('Hydrate failed:', res.statusText);
-          setLoading(prev => ({ ...prev, hero: false, about: false, skills: false, projects: false, certifications: false, experience: false, education: false, blogs: false, leetcode: false, github: false, settings: false }));
+          return;
         }
+        // Non-OK status -> fallback
+        console.warn('Hydrate returned non-OK, falling back to parallel loads');
       } catch (err) {
-        console.error('Hydrate error', err);
-        setLoading(prev => ({ ...prev, hero: false, about: false, skills: false, projects: false, certifications: false, experience: false, education: false, blogs: false, leetcode: false, github: false, settings: false }));
+        console.warn('Hydrate request failed, falling back to parallel loads', err);
       }
+
+      // Fallback to multiple independent loads
+      await fallbackParallelLoads();
     };
 
     loadHydrate();
