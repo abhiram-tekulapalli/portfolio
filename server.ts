@@ -74,6 +74,18 @@ app.use((req, res, next) => {
   next();
 });
 
+// Invalidate aggregator and integration caches on any write operation (POST/PUT/DELETE)
+// This keeps hydrate responses fresh after admin changes without having to call
+// invalidate explicitly in every handler.
+app.use('/api/v1', (req, res, next) => {
+  if (['POST', 'PUT', 'DELETE'].includes(req.method)) {
+    leetcodeCache = null;
+    githubCache = null;
+    hydrateCache = null;
+  }
+  next();
+});
+
 app.get('/health', (req, res) => {
   res.status(200).json({ ok: true, service: 'portfolio' });
 });
@@ -804,6 +816,7 @@ app.get('/api/v1/hydrate', async (req, res) => {
       return res.json(hydrateCache);
     }
 
+    // Base content from DB
     const data: any = {
       hero: db.getHero(),
       about: db.getAbout(),
@@ -814,10 +827,55 @@ app.get('/api/v1/hydrate', async (req, res) => {
       education: db.getEducations(),
       blogs: db.getBlogs().filter((b: any) => b.status === 'published'),
       settings: db.getSettings(),
-      // include cached integrations when available to avoid extra backend fetches
       leetcode: leetcodeCache || null,
       github: githubCache || null
     };
+
+    // If integration caches are empty, try to fetch them server-side quickly
+    // to reduce frontend stalls. Use BACKEND_URL if provided or localhost with PORT.
+    const backendBase = (process.env.BACKEND_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
+
+    const fetchWithTimeout = async (url: string, timeoutMs = 6000) => {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const r = await fetch(url, { signal: controller.signal });
+        clearTimeout(id);
+        if (!r.ok) throw new Error(`Non-OK: ${r.status}`);
+        return await r.json();
+      } catch (e) {
+        clearTimeout(id);
+        return null;
+      }
+    };
+
+    // Parallel fetch integrations only if cache missing
+    const integrationPromises: Promise<void>[] = [];
+    if (!leetcodeCache && data.settings?.leetcode) {
+      integrationPromises.push((async () => {
+        const l = await fetchWithTimeout(`${backendBase}/api/v1/integrations/leetcode`, 5000);
+        if (l) {
+          leetcodeCache = l;
+          leetcodeCacheTime = Date.now();
+          data.leetcode = l;
+        }
+      })());
+    }
+    if (!githubCache && data.settings?.github) {
+      integrationPromises.push((async () => {
+        const g = await fetchWithTimeout(`${backendBase}/api/v1/integrations/github`, 5000);
+        if (g) {
+          githubCache = g;
+          githubCacheTime = Date.now();
+          data.github = g;
+        }
+      })());
+    }
+
+    // Wait for integrations (short timeout). If they take too long, respond with DB-only payload.
+    try {
+      await Promise.allSettled(integrationPromises);
+    } catch (e) { }
 
     hydrateCache = data;
     hydrateCacheTime = now;
