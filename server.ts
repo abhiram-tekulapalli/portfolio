@@ -813,7 +813,12 @@ app.get('/api/v1/hydrate', async (req, res) => {
   const now = Date.now();
   try {
     if (hydrateCache && (now - hydrateCacheTime < HYDRATE_TTL * 1000)) {
-      return res.json(hydrateCache);
+      if (hydrateCache.leetcode == null || hydrateCache.github == null) {
+        // Reject stale cached hydrate payloads if integration fields were missing.
+        hydrateCache = null;
+      } else {
+        return res.json(hydrateCache);
+      }
     }
 
     // Base content from DB
