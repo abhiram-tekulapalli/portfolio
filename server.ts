@@ -817,6 +817,53 @@ app.get('/api/v1/hydrate', async (req, res) => {
     }
 
     // Base content from DB
+    // Safe fallback builders for integrations
+    const settings = db.getSettings();
+    const makeLeetcodeFallback = (settings: any) => {
+      const ez = settings.leetcodeCustomEasy !== undefined && (settings.leetcodeCustomEasy as any) !== "" ? Number(settings.leetcodeCustomEasy) : 140;
+      const md = settings.leetcodeCustomMedium !== undefined && (settings.leetcodeCustomMedium as any) !== "" ? Number(settings.leetcodeCustomMedium) : 125;
+      const hd = settings.leetcodeCustomHard !== undefined && (settings.leetcodeCustomHard as any) !== "" ? Number(settings.leetcodeCustomHard) : 0;
+      return {
+        username: settings.leetcodeUsername || 'abhiram_tp',
+        ranking: settings.leetcodeCustomRanking || "42,128",
+        totalSolved: ez + md + hd,
+        totalQuestions: 3100,
+        easySolved: ez,
+        easyTotal: 840,
+        mediumSolved: md,
+        mediumTotal: 1560,
+        hardSolved: hd,
+        hardTotal: 700,
+        streak: settings.leetcodeCustomStreak ?? 15,
+        maxStreak: 45,
+        badges: [
+          { name: "50 Days Challenge" },
+          { name: "100 Solved Badges" },
+          { name: "Active Contributor" }
+        ],
+        lastUpdated: new Date().toISOString(),
+        isDemoFallback: true
+      };
+    };
+
+    const makeGithubFallback = (settings: any) => {
+      const publicRepos = settings.githubCustomRepos !== undefined && (settings.githubCustomRepos as any) !== "" ? Number(settings.githubCustomRepos) : 18;
+      const followers = settings.githubCustomFollowers !== undefined && (settings.githubCustomFollowers as any) !== "" ? Number(settings.githubCustomFollowers) : 48;
+      const stars = settings.githubCustomStars !== undefined && (settings.githubCustomStars as any) !== "" ? Number(settings.githubCustomStars) : 32;
+      const commitsThisYear = settings.githubCustomCommits !== undefined && (settings.githubCustomCommits as any) !== "" ? Number(settings.githubCustomCommits) : 524;
+      const topLanguages = [{ name: "Python", percentage: 48.5 }];
+      return {
+        username: settings.githubUsername || 'abhiram-tp',
+        publicRepos,
+        followers,
+        stars,
+        commitsThisYear,
+        topLanguages,
+        lastUpdated: new Date().toISOString(),
+        isDemoFallback: true
+      };
+    };
+
     const data: any = {
       hero: db.getHero(),
       about: db.getAbout(),
@@ -826,9 +873,9 @@ app.get('/api/v1/hydrate', async (req, res) => {
       experience: db.getExperiences(),
       education: db.getEducations(),
       blogs: db.getBlogs().filter((b: any) => b.status === 'published'),
-      settings: db.getSettings(),
-      leetcode: leetcodeCache || null,
-      github: githubCache || null
+      settings,
+      leetcode: leetcodeCache ?? makeLeetcodeFallback(settings),
+      github: githubCache ?? makeGithubFallback(settings)
     };
 
     // If integration caches are empty, try to fetch them server-side quickly
