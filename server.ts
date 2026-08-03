@@ -851,7 +851,7 @@ app.get('/api/v1/hydrate', async (req, res) => {
 
     // Parallel fetch integrations only if cache missing
     const integrationPromises: Promise<void>[] = [];
-    if (!leetcodeCache && data.settings?.leetcode) {
+    if (!leetcodeCache && data.settings?.leetcodeUsername) {
       integrationPromises.push((async () => {
         const l = await fetchWithTimeout(`${backendBase}/api/v1/integrations/leetcode`, 5000);
         if (l) {
@@ -861,7 +861,7 @@ app.get('/api/v1/hydrate', async (req, res) => {
         }
       })());
     }
-    if (!githubCache && data.settings?.github) {
+    if (!githubCache && data.settings?.githubUsername) {
       integrationPromises.push((async () => {
         const g = await fetchWithTimeout(`${backendBase}/api/v1/integrations/github`, 5000);
         if (g) {
