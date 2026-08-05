@@ -86,7 +86,7 @@ const INITIAL_DB: DatabaseSchema = {
     { id: "s4", name: "TypeScript", category: "Languages", order: 4 },
     { id: "s5", name: "HTML5 & CSS3", category: "Languages", order: 5 },
     { id: "s6", name: "SQL", category: "Languages", order: 6 },
-    
+
     // Frameworks
     { id: "f1", name: "React", category: "Frameworks", order: 1 },
     { id: "f2", name: "Node.js", category: "Frameworks", order: 2 },
@@ -101,7 +101,7 @@ const INITIAL_DB: DatabaseSchema = {
     { id: "a4", name: "Pandas", category: "AI/ML", order: 4 },
     { id: "a5", name: "NumPy", category: "AI/ML", order: 5 },
     { id: "a6", name: "OpenCV", category: "AI/ML", order: 6 },
-    
+
     // Databases
     { id: "d1", name: "MongoDB", category: "Databases", order: 1 },
     { id: "d2", name: "MySQL", category: "Databases", order: 2 },
@@ -400,7 +400,7 @@ class LocalDatabase {
       if (fs.existsSync(DB_FILE)) {
         const fileContent = fs.readFileSync(DB_FILE, 'utf-8');
         this.data = JSON.parse(fileContent);
-        
+
         // Ensure settings visible sections has default if missing
         if (!this.data.settings) {
           this.data.settings = INITIAL_DB.settings;
@@ -434,11 +434,11 @@ class LocalDatabase {
           throw err;
         });
         await connectWithTimeout;
-        
+
         const dbName = process.env.MONGODB_DB_NAME || 'portfolio_db';
         const collectionName = process.env.MONGODB_COLLECTION_NAME || 'portfolio_data';
         const collection = client.db(dbName).collection(collectionName);
-        
+
         this.mongoClient = client;
         this.mongoCollection = collection;
 
@@ -448,11 +448,11 @@ class LocalDatabase {
           console.log("[DATABASE] Successfully loaded and synchronized database from MongoDB Atlas!");
           const { _id, ...rest } = cloudDoc as any;
           this.data = rest as DatabaseSchema;
-          
+
           // Double-check settings and adminHash are complete
           if (!this.data.settings) this.data.settings = INITIAL_DB.settings;
           if (!this.data.adminHash) this.data.adminHash = DEFAULT_HASH;
-          
+
           // Restore resume.pdf from MongoDB binary base64 if present
           if (this.data.resumePdfBase64) {
             try {
@@ -468,7 +468,7 @@ class LocalDatabase {
               console.error("[DATABASE] Failed to write resume.pdf on startup:", pdfErr);
             }
           }
-          
+
           // Save a synchronized local disk copy to keep them aligned
           this.saveToDisk(true);
         } else {
@@ -541,7 +541,7 @@ class LocalDatabase {
 
   // Skills
   public getSkills(): Skill[] {
-    return this.data.skills.sort((a,b) => a.order - b.order);
+    return this.data.skills.sort((a, b) => a.order - b.order);
   }
 
   public addSkill(name: string, category: string): Skill {
@@ -577,7 +577,7 @@ class LocalDatabase {
 
   // Projects
   public getProjects(): Project[] {
-    return this.data.projects.sort((a,b) => a.order - b.order);
+    return this.data.projects.sort((a, b) => a.order - b.order);
   }
 
   public addProject(proj: Omit<Project, 'id'>): Project {
@@ -616,7 +616,7 @@ class LocalDatabase {
 
   // Certifications
   public getCertifications(): Certification[] {
-    return this.data.certifications.sort((a,b) => a.order - b.order);
+    return this.data.certifications.sort((a, b) => a.order - b.order);
   }
 
   public addCertification(cert: Omit<Certification, 'id'>): Certification {
@@ -646,7 +646,7 @@ class LocalDatabase {
 
   // Experience
   public getExperiences(): Experience[] {
-    return this.data.experience.sort((a,b) => a.order - b.order);
+    return this.data.experience.sort((a, b) => a.order - b.order);
   }
 
   public addExperience(exp: Omit<Experience, 'id'>): Experience {
@@ -676,7 +676,7 @@ class LocalDatabase {
 
   // Education
   public getEducations(): Education[] {
-    return this.data.education.sort((a,b) => a.order - b.order);
+    return this.data.education.sort((a, b) => a.order - b.order);
   }
 
   public addEducation(edu: Omit<Education, 'id'>): Education {
@@ -710,7 +710,7 @@ class LocalDatabase {
       ...b,
       category: b.category || b.tags[0] || 'Engineering'
     }));
-    return list.sort((a,b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+    return list.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
   }
 
   public getBlogBySlug(slug: string): Blog | undefined {
@@ -727,7 +727,7 @@ class LocalDatabase {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)+/g, '');
-    
+
     // Simple words estimate for read-time
     const words = blog.content.split(/\s+/).length;
     const readTime = Math.max(1, Math.round(words / 200));
@@ -749,7 +749,7 @@ class LocalDatabase {
     if (idx === -1) throw new Error("Blog not found");
 
     const merged = { ...this.data.blogs[idx], ...updated };
-    
+
     if (updated.title) {
       merged.slug = updated.title
         .toLowerCase()
@@ -791,14 +791,14 @@ class LocalDatabase {
     try {
       const parsed = JSON.parse(jsonString);
       if (
-        parsed.hero && 
-        parsed.about && 
-        parsed.skills && 
-        parsed.projects && 
-        parsed.certifications && 
-        parsed.experience && 
-        parsed.education && 
-        parsed.blogs && 
+        parsed.hero &&
+        parsed.about &&
+        parsed.skills &&
+        parsed.projects &&
+        parsed.certifications &&
+        parsed.experience &&
+        parsed.education &&
+        parsed.blogs &&
         parsed.settings
       ) {
         this.data = parsed;

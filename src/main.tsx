@@ -4,11 +4,10 @@ import App from './App.tsx';
 import './index.css';
 
 // Use VITE_API_BASE_URL when provided (including production) so frontend can
-// talk directly to the backend if needed. Fall back to the Render backend
-// when deployed to Vercel and the env var is missing.
+// talk directly to the backend if needed. Fall back to relative `/api` in
+// production when the env var is empty.
 const envApiBase = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
-const renderBackend = 'https://portfolio-rty5.onrender.com';
-const apiBaseUrl = envApiBase || (import.meta.env.DEV ? 'http://localhost:3000' : renderBackend);
+const apiBaseUrl = envApiBase || (import.meta.env.DEV ? 'http://localhost:3000' : '');
 const originalFetch = window.fetch.bind(window);
 
 window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {

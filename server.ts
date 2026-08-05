@@ -74,18 +74,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Invalidate aggregator and integration caches on any write operation (POST/PUT/DELETE)
-// This keeps hydrate responses fresh after admin changes without having to call
-// invalidate explicitly in every handler.
-app.use('/api/v1', (req, res, next) => {
-  if (['POST', 'PUT', 'DELETE'].includes(req.method)) {
-    leetcodeCache = null;
-    githubCache = null;
-    hydrateCache = null;
-  }
-  next();
-});
-
 app.get('/health', (req, res) => {
   res.status(200).json({ ok: true, service: 'portfolio' });
 });
@@ -118,7 +106,7 @@ const rateLimitMiddleware = (limit: number, durationMinutes: number) => {
   return (req: any, res: any, next: any) => {
     const ip = req.ip || req.headers['x-forwarded-for'] || '127.0.0.1';
     const now = Date.now();
-
+    
     if (!rateLimits[ip] || now > rateLimits[ip].resetAt) {
       rateLimits[ip] = {
         count: 1,
@@ -126,14 +114,14 @@ const rateLimitMiddleware = (limit: number, durationMinutes: number) => {
       };
       return next();
     }
-
+    
     if (rateLimits[ip].count >= limit) {
       const waitMins = Math.ceil((rateLimits[ip].resetAt - now) / 60000);
-      return res.status(429).json({
-        error: `Too many requests. Please wait ${waitMins} minutes.`
+      return res.status(429).json({ 
+        error: `Too many requests. Please wait ${waitMins} minutes.` 
       });
     }
-
+    
     rateLimits[ip].count++;
     next();
   };
@@ -159,24 +147,24 @@ const isLoginLocked = () => {
 // --- AUTHENTICATION ---
 app.post('/api/v1/auth/login', rateLimitMiddleware(10, 1), (req: any, res: any) => {
   const { password } = req.body;
-
+  
   if (isLoginLocked()) {
-    const remainingSecs = Math.ceil(((loginLockoutTime || 0) - Date.now()) / 1000);
-    return res.status(429).json({
-      error: `Locked. Try again in ${Math.ceil(remainingSecs / 60)} minutes.`
+    const remainingSecs = Math.ceil(( (loginLockoutTime || 0) - Date.now() ) / 1000);
+    return res.status(429).json({ 
+      error: `Locked. Try again in ${Math.ceil(remainingSecs / 60)} minutes.` 
     });
   }
-
+  
   if (!password) {
     return res.status(400).json({ error: "Password is required" });
   }
-
+  
   if (db.verifyPassword(password)) {
     loginFailCount = 0;
     loginLockoutTime = null;
-
+    
     const token = jwt.sign({ role: 'admin' }, JWT_SECRET, { expiresIn: '8h' });
-
+    
     // Set cookie
     res.setHeader('Set-Cookie', `admin_token=${token}; ${getCookieAttributes(req)}`);
     return res.json({ success: true });
@@ -478,16 +466,15 @@ app.put('/api/v1/settings', verifyToken, (req, res) => {
   try {
     const existing = db.getSettings();
     const payload = req.body;
-
+    
     // Mask handler: Check if password was sent masked or real
     if (payload.smtpConfig && payload.smtpConfig.pass === "********") {
       payload.smtpConfig.pass = existing.smtpConfig.pass;
     }
-
+    
     db.updateSettings(payload);
     leetcodeCache = null; // Clear LeetCode cache instantly
     githubCache = null; // Clear GitHub cache instantly
-    hydrateCache = null; // Clear hydrate aggregator cache so frontends pick up new settings
     res.json({ success: true, settings: db.getSettings() });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -511,25 +498,20 @@ app.put('/api/v1/settings/change-password', verifyToken, (req, res) => {
 let leetcodeCache: any = null;
 let leetcodeCacheTime = 0;
 
-// --- HYDRATE AGGREGATOR CACHE ---
-let hydrateCache: any = null;
-let hydrateCacheTime = 0;
-const HYDRATE_TTL = Number(process.env.HYDRATE_TTL_SECONDS || 120);
-
 app.get('/api/v1/integrations/leetcode', async (req, res) => {
   const settings = db.getSettings();
   const username = settings.leetcodeUsername || 'abhiram_tp';
   const now = Date.now();
-
+  
   // Return cached if within 1 hour
   if (leetcodeCache && (now - leetcodeCacheTime < 3600 * 1000) && leetcodeCache.username === username) {
     return res.json(leetcodeCache);
   }
-
+  
   try {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), 8000); // 8s timeout
-
+    
     // Actual LeetCode GraphQL fetch
     const response = await fetch('https://leetcode.com/graphql', {
       method: 'POST',
@@ -564,21 +546,21 @@ app.get('/api/v1/integrations/leetcode', async (req, res) => {
       }),
       signal: controller.signal
     });
-
+    
     clearTimeout(id);
     const data: any = await response.json();
-
+    
     if (data.errors || !data.data || !data.data.matchedUser) {
       throw new Error("User data not found or LeetCode query error");
     }
-
+    
     const user = data.data.matchedUser;
     const acStats = user.submitStats.acSubmissionNum;
-
+    
     let easySolved = acStats.find((s: any) => s.difficulty === 'Easy')?.count ?? 140;
     let mediumSolved = acStats.find((s: any) => s.difficulty === 'Medium')?.count ?? 125;
     let hardSolved = acStats.find((s: any) => s.difficulty === 'Hard')?.count ?? 0;
-
+    
     // Process user-defined database overrides if available
     if (settings.leetcodeCustomEasy !== undefined && settings.leetcodeCustomEasy !== null && (settings.leetcodeCustomEasy as any) !== "") {
       easySolved = Number(settings.leetcodeCustomEasy);
@@ -590,7 +572,7 @@ app.get('/api/v1/integrations/leetcode', async (req, res) => {
       hardSolved = Number(settings.leetcodeCustomHard);
     }
     const totalSolved = easySolved + mediumSolved + hardSolved;
-
+    
     const allCounts = data.data.allQuestionsCount ?? [];
     const totalQuestions = allCounts.find((c: any) => c.difficulty === 'All')?.count ?? 3100;
     const easyTotal = allCounts.find((c: any) => c.difficulty === 'Easy')?.count ?? 800;
@@ -624,7 +606,7 @@ app.get('/api/v1/integrations/leetcode', async (req, res) => {
     const ez = settings.leetcodeCustomEasy !== undefined && (settings.leetcodeCustomEasy as any) !== "" ? Number(settings.leetcodeCustomEasy) : 140;
     const md = settings.leetcodeCustomMedium !== undefined && (settings.leetcodeCustomMedium as any) !== "" ? Number(settings.leetcodeCustomMedium) : 125;
     const hd = settings.leetcodeCustomHard !== undefined && (settings.leetcodeCustomHard as any) !== "" ? Number(settings.leetcodeCustomHard) : 0;
-
+    
     const defaultData = {
       username,
       ranking: settings.leetcodeCustomRanking || "42,128",
@@ -664,31 +646,31 @@ app.get('/api/v1/integrations/github', async (req, res) => {
   const settings = db.getSettings();
   const username = settings.githubUsername || 'abhiram-tp';
   const now = Date.now();
-
+  
   if (githubCache && (now - githubCacheTime < 7200 * 1000) && githubCache.username === username) {
     return res.json(githubCache);
   }
-
+  
   try {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), 8000); // 8s timeout
-
+    
     const [userRes, reposRes] = await Promise.all([
       fetch(`https://api.github.com/users/${username}`, { signal: controller.signal }),
       fetch(`https://api.github.com/users/${username}/repos?per_page=100`, { signal: controller.signal })
     ]);
-
+    
     clearTimeout(id);
-
+    
     if (!userRes.ok) throw new Error("GitHub profile fetch failed");
-
+    
     const user = await userRes.json();
     const repos = await reposRes.json();
-
+    
     // Sum stars & extract languages
     let totalStars = 0;
     const langScores: Record<string, number> = {};
-
+    
     if (Array.isArray(repos)) {
       repos.forEach((repo: any) => {
         totalStars += (repo.stargazers_count || 0);
@@ -697,7 +679,7 @@ app.get('/api/v1/integrations/github', async (req, res) => {
         }
       });
     }
-
+    
     const languagesSorted = Object.entries(langScores)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 4)
@@ -708,7 +690,7 @@ app.get('/api/v1/integrations/github', async (req, res) => {
           percentage: Number(((count / total) * 100).toFixed(1))
         };
       });
-
+      
     let publicRepos = user.public_repos ?? 0;
     let followers = user.followers ?? 0;
     let stars = totalStars;
@@ -738,7 +720,7 @@ app.get('/api/v1/integrations/github', async (req, res) => {
         if (parts.length > 0) {
           topLanguages = parts;
         }
-      } catch (e) { }
+      } catch (e) {}
     }
 
     githubCache = {
@@ -785,7 +767,7 @@ app.get('/api/v1/integrations/github', async (req, res) => {
         if (parts.length > 0) {
           topLanguages = parts;
         }
-      } catch (e) { }
+      } catch (e) {}
     }
 
     const defaultGithub = {
@@ -808,146 +790,17 @@ app.post('/api/v1/integrations/github/refresh', verifyToken, (req, res) => {
   res.json({ success: true });
 });
 
-// --- HYDRATE AGGREGATOR ---
-app.get('/api/v1/hydrate', async (req, res) => {
-  const now = Date.now();
-  try {
-    if (hydrateCache && (now - hydrateCacheTime < HYDRATE_TTL * 1000)) {
-      if (hydrateCache.leetcode == null || hydrateCache.github == null) {
-        // Reject stale cached hydrate payloads if integration fields were missing.
-        hydrateCache = null;
-      } else {
-        return res.json(hydrateCache);
-      }
-    }
-
-    // Base content from DB
-    // Safe fallback builders for integrations
-    const settings = db.getSettings();
-    const makeLeetcodeFallback = (settings: any) => {
-      const ez = settings.leetcodeCustomEasy !== undefined && (settings.leetcodeCustomEasy as any) !== "" ? Number(settings.leetcodeCustomEasy) : 140;
-      const md = settings.leetcodeCustomMedium !== undefined && (settings.leetcodeCustomMedium as any) !== "" ? Number(settings.leetcodeCustomMedium) : 125;
-      const hd = settings.leetcodeCustomHard !== undefined && (settings.leetcodeCustomHard as any) !== "" ? Number(settings.leetcodeCustomHard) : 0;
-      return {
-        username: settings.leetcodeUsername || 'abhiram_tp',
-        ranking: settings.leetcodeCustomRanking || "42,128",
-        totalSolved: ez + md + hd,
-        totalQuestions: 3100,
-        easySolved: ez,
-        easyTotal: 840,
-        mediumSolved: md,
-        mediumTotal: 1560,
-        hardSolved: hd,
-        hardTotal: 700,
-        streak: settings.leetcodeCustomStreak ?? 15,
-        maxStreak: 45,
-        badges: [
-          { name: "50 Days Challenge" },
-          { name: "100 Solved Badges" },
-          { name: "Active Contributor" }
-        ],
-        lastUpdated: new Date().toISOString(),
-        isDemoFallback: true
-      };
-    };
-
-    const makeGithubFallback = (settings: any) => {
-      const publicRepos = settings.githubCustomRepos !== undefined && (settings.githubCustomRepos as any) !== "" ? Number(settings.githubCustomRepos) : 18;
-      const followers = settings.githubCustomFollowers !== undefined && (settings.githubCustomFollowers as any) !== "" ? Number(settings.githubCustomFollowers) : 48;
-      const stars = settings.githubCustomStars !== undefined && (settings.githubCustomStars as any) !== "" ? Number(settings.githubCustomStars) : 32;
-      const commitsThisYear = settings.githubCustomCommits !== undefined && (settings.githubCustomCommits as any) !== "" ? Number(settings.githubCustomCommits) : 524;
-      const topLanguages = [{ name: "Python", percentage: 48.5 }];
-      return {
-        username: settings.githubUsername || 'abhiram-tp',
-        publicRepos,
-        followers,
-        stars,
-        commitsThisYear,
-        topLanguages,
-        lastUpdated: new Date().toISOString(),
-        isDemoFallback: true
-      };
-    };
-
-    const data: any = {
-      hero: db.getHero(),
-      about: db.getAbout(),
-      skills: db.getSkills(),
-      projects: db.getProjects(),
-      certifications: db.getCertifications(),
-      experience: db.getExperiences(),
-      education: db.getEducations(),
-      blogs: db.getBlogs().filter((b: any) => b.status === 'published'),
-      settings,
-      leetcode: leetcodeCache ?? makeLeetcodeFallback(settings),
-      github: githubCache ?? makeGithubFallback(settings)
-    };
-
-    // If integration caches are empty, try to fetch them server-side quickly
-    // to reduce frontend stalls. Use BACKEND_URL if provided or localhost with PORT.
-    const backendBase = (process.env.BACKEND_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
-
-    const fetchWithTimeout = async (url: string, timeoutMs = 6000) => {
-      const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), timeoutMs);
-      try {
-        const r = await fetch(url, { signal: controller.signal });
-        clearTimeout(id);
-        if (!r.ok) throw new Error(`Non-OK: ${r.status}`);
-        return await r.json();
-      } catch (e) {
-        clearTimeout(id);
-        return null;
-      }
-    };
-
-    // Parallel fetch integrations only if cache missing
-    const integrationPromises: Promise<void>[] = [];
-    if (!leetcodeCache && data.settings?.leetcodeUsername) {
-      integrationPromises.push((async () => {
-        const l = await fetchWithTimeout(`${backendBase}/api/v1/integrations/leetcode`, 5000);
-        if (l) {
-          leetcodeCache = l;
-          leetcodeCacheTime = Date.now();
-          data.leetcode = l;
-        }
-      })());
-    }
-    if (!githubCache && data.settings?.githubUsername) {
-      integrationPromises.push((async () => {
-        const g = await fetchWithTimeout(`${backendBase}/api/v1/integrations/github`, 5000);
-        if (g) {
-          githubCache = g;
-          githubCacheTime = Date.now();
-          data.github = g;
-        }
-      })());
-    }
-
-    // Wait for integrations (short timeout). If they take too long, respond with DB-only payload.
-    try {
-      await Promise.allSettled(integrationPromises);
-    } catch (e) { }
-
-    hydrateCache = data;
-    hydrateCacheTime = now;
-    res.json(data);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Hydrate failed' });
-  }
-});
-
 // --- CONTACT FORM API ---
 app.post('/api/v1/contact', rateLimitMiddleware(3, 15), (req: any, res: any) => {
   const { name, email, subject, message } = req.body;
-
+  
   if (!name || !email || !subject || !message) {
     return res.status(400).json({ error: "All contact fields are required." });
   }
-
+  
   // Real world console outputs and mock logs
   console.log(`[STOKED PORTFOLIO CONTACT]:\nSubject: ${subject}\nSender Name: ${name} (${email})\nContent Message: ${message}`);
-
+  
   // Success state returns immediately to the frontend
   res.json({ success: true });
 });
@@ -956,7 +809,7 @@ app.post('/api/v1/contact', rateLimitMiddleware(3, 15), (req: any, res: any) => 
 app.post('/api/v1/gemini/assist', verifyToken, async (req: any, res: any) => {
   const { prompt, type } = req.body;
   if (!prompt) return res.status(400).json({ error: "Prompt is required" });
-
+  
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
     // Friendly, gorgeous generative mock outline when API key isn't populated
@@ -975,7 +828,7 @@ This provides an exceptional workflow for undergraduate AI/ML portfolios.`,
     };
     return res.json({ text: mockResponses[type || 'blog'] || "Draft generated successfully (Set GEMINI_API_KEY to test actual generation API...)" });
   }
-
+  
   try {
     const ai = new GoogleGenAI({
       apiKey,
@@ -985,7 +838,7 @@ This provides an exceptional workflow for undergraduate AI/ML portfolios.`,
         }
       }
     });
-
+    
     let instructions = "You are an elite, senior-level copywriter assisting. Create crisp, Swiss-Brutalist developer portfolio content. Avoid flowery adjectives, marketing hype, or purple summaries. Focus purely on technical rigor and elegant phrasing.";
     if (type === 'blog') {
       instructions += " You must write in full markdown format with standard headers, structured code snippets, and scannable technical highlights. Deliver standard article drafts.";
@@ -994,7 +847,7 @@ This provides an exceptional workflow for undergraduate AI/ML portfolios.`,
     } else if (type === 'experience') {
       instructions += " Deliver 3 strong bullet lines starting with action-verbs mapping exact quantitative engineering highlights.";
     }
-
+    
     const response = await ai.models.generateContent({
       model: "gemini-3.5-flash",
       contents: prompt,
@@ -1003,7 +856,7 @@ This provides an exceptional workflow for undergraduate AI/ML portfolios.`,
         temperature: 0.7
       }
     });
-
+    
     res.json({ text: response.text });
   } catch (error: any) {
     res.status(500).json({ error: "Gemini assist failed: " + error.message });
@@ -1048,7 +901,7 @@ app.get('/resume.pdf', (req, res) => {
       if (hero && hero.resumeUrl && hero.resumeUrl.startsWith('http')) {
         return res.redirect(hero.resumeUrl);
       }
-    } catch (e) { }
+    } catch (e) {}
     res.status(404).send("Document not uploaded yet. Go to the Admin dashboard settings to upload your custom PDF resume!");
   }
 });
@@ -1059,28 +912,28 @@ app.post('/api/v1/resume/upload', verifyToken, (req, res) => {
     if (!base64) {
       return res.status(400).json({ error: "Missing file base64 data" });
     }
-
+    
     // Extract base64 clean string
     const matchRaw = base64.match(/^data:.+\/(.+);base64,(.*)$/);
     const cleanBase64 = matchRaw ? matchRaw[2] : base64;
-
+    
     const buffer = Buffer.from(cleanBase64, 'base64');
     const folderPath = path.join(process.cwd(), 'data');
     if (!fs.existsSync(folderPath)) {
       fs.mkdirSync(folderPath, { recursive: true });
     }
-
+    
     const filePath = path.join(folderPath, 'resume.pdf');
     fs.writeFileSync(filePath, buffer);
-
+    
     // Keep local schema synced so the CTA button guides directly to the newly hosted static `/resume.pdf` endpoint!
     db.updateHero({ resumeUrl: '/resume.pdf' });
-
+    
     // Save the PDF base64 to MongoDB for persistent cloud sync
     if (typeof db.saveResumePdf === 'function') {
       db.saveResumePdf(cleanBase64);
     }
-
+    
     res.json({ success: true, url: '/resume.pdf', hero: db.getHero() });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -1093,7 +946,7 @@ app.get('/api/v1/admin/stats', verifyToken, (req, res) => {
   const certs = db.getCertifications();
   const blogs = db.getBlogs();
   const skills = db.getSkills();
-
+  
   res.json({
     totalProjects: projs.length,
     totalCertifications: certs.length,
@@ -1114,12 +967,12 @@ const startServer = async () => {
       appType: "spa",
     });
     app.use(vite.middlewares);
-
+    
     // SPA Fallback for client router in dev
     app.get('*', (req, res, next) => {
       // Avoid falling back for API routes that missed
       if (req.originalUrl.startsWith('/api/')) return next();
-
+      
       vite.transformIndexHtml(req.originalUrl, '<!doctype html>...').then(() => {
         res.sendFile(path.join(process.cwd(), 'index.html'));
       }).catch(err => next(err));
