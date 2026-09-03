@@ -8,7 +8,7 @@ import fs from 'fs';
 import path from 'path';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
-import { createServer as createViteServer } from 'vite';
+import crypto from 'crypto';
 import { GoogleGenAI } from '@google/genai';
 import { db } from './src/server/db.js';
 
@@ -16,7 +16,11 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'secret_key_abhiram_tpa_772183';
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? '' : crypto.randomBytes(32).toString('hex'));
+
+if (process.env.NODE_ENV === 'production' && !JWT_SECRET) {
+  throw new Error('JWT_SECRET must be configured in production.');
+}
 
 // Express limits and body parse
 app.use(express.json({ limit: '10mb' }));
@@ -41,26 +45,27 @@ const getLogoutCookieAttributes = (req: any) => {
     : 'Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT';
 };
 
+const getAllowedOrigins = () => [
+  process.env.FRONTEND_URL,
+  process.env.VITE_APP_URL,
+  process.env.BACKEND_URL,
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5173'
+].filter(Boolean) as string[];
+
+const isAllowedOrigin = (origin: string | undefined) => !origin || getAllowedOrigins().includes(origin);
+const isSameOriginRequest = (req: any, origin: string | undefined) => {
+  if (!origin) return true;
+  const protocol = isHttpsRequest(req) ? 'https' : 'http';
+  return origin === `${protocol}://${req.get('host')}`;
+};
+
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  const allowedOrigins = [
-    process.env.FRONTEND_URL,
-    process.env.VITE_APP_URL,
-    process.env.BACKEND_URL,
-    'http://localhost:3000',
-    'http://localhost:5173',
-    'http://127.0.0.1:3000',
-    'http://127.0.0.1:5173'
-  ].filter(Boolean) as string[];
 
-  const isAllowedOrigin = origin && (
-    allowedOrigins.includes(origin) ||
-    origin.includes('.vercel.app') ||
-    origin.includes('.vercel.dev') ||
-    origin.includes('localhost')
-  );
-
-  if (isAllowedOrigin || !origin) {
+  if (isAllowedOrigin(origin) || isSameOriginRequest(req, origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin || '*');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
@@ -99,6 +104,9 @@ const getCookieValue = (cookiesHeader: string | undefined, name: string): string
 
 // Admin authentication middleware
 const verifyToken = (req: any, res: any, next: any) => {
+  if (!isAllowedOrigin(req.headers.origin) && !isSameOriginRequest(req, req.headers.origin)) {
+    return res.status(403).json({ error: 'Untrusted request origin.' });
+  }
   const token = getCookieValue(req.headers.cookie, 'admin_token');
   if (!token) {
     return res.status(401).json({ error: "Access denied. Session expired." });
@@ -429,7 +437,7 @@ app.get('/api/v1/blogs/all', verifyToken, (req, res) => {
 
 app.get('/api/v1/blogs/:slug', (req, res) => {
   const b = db.getBlogBySlug(req.params.slug);
-  if (!b) return res.status(404).json({ error: "Blog not found" });
+  if (!b || b.status !== 'published') return res.status(404).json({ error: "Blog not found" });
   res.json(b);
 });
 
@@ -884,8 +892,10 @@ app.get('/api/v1/hydrate', async (req, res) => {
     };
 
     // If integration caches are empty, try to fetch them server-side quickly
-    // to reduce frontend stalls. Use BACKEND_URL if provided or localhost with PORT.
-    const backendBase = (process.env.BACKEND_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
+    // while keeping the request on the current deployment.
+    // Stay on the current deployment.  In particular, do not use BACKEND_URL
+    // here: on Vercel that value may still point to the old Render deployment.
+    const backendBase = `${isHttpsRequest(req) ? 'https' : 'http'}://${req.get('host')}`;
 
     const fetchWithTimeout = async (url: string, timeoutMs = 6000) => {
       const controller = new AbortController();
@@ -1038,19 +1048,34 @@ app.post('/api/v1/admin/reset-default', verifyToken, (req, res) => {
 // --- STATIC RESUME HOSTING SERVICE ---
 app.get('/resume.pdf', (req, res) => {
   const filePath = path.join(process.cwd(), 'data', 'resume.pdf');
+
+  // Try local file first (works in dev)
   if (fs.existsSync(filePath)) {
     res.contentType("application/pdf");
     return res.sendFile(filePath);
-  } else {
-    // If local file is missing, try redirecting to the database Hero resumeUrl if it is a general web URL
-    try {
-      const hero = db.getHero();
-      if (hero && hero.resumeUrl && hero.resumeUrl.startsWith('http')) {
-        return res.redirect(hero.resumeUrl);
-      }
-    } catch (e) { }
-    res.status(404).send("Document not uploaded yet. Go to the Admin dashboard settings to upload your custom PDF resume!");
   }
+
+  // In production (Vercel), serve from MongoDB Base64
+  try {
+    const hero = db.getHero();
+    if (hero && hero.resumeUrl && hero.resumeUrl.startsWith('http')) {
+      return res.redirect(hero.resumeUrl);
+    }
+
+    // Try to read from database Base64 storage (MongoDB in production)
+    const exportedData = db.exportData();
+    const data = JSON.parse(exportedData);
+    if (data.resumePdfBase64) {
+      const buffer = Buffer.from(data.resumePdfBase64, 'base64');
+      res.contentType("application/pdf");
+      res.set('Content-Length', buffer.length.toString());
+      return res.send(buffer);
+    }
+  } catch (e) {
+    console.error('Error reading resume from database:', e);
+  }
+
+  res.status(404).send("Document not uploaded yet. Go to the Admin dashboard settings to upload your custom PDF resume!");
 });
 
 app.post('/api/v1/resume/upload', verifyToken, (req, res) => {
@@ -1064,14 +1089,16 @@ app.post('/api/v1/resume/upload', verifyToken, (req, res) => {
     const matchRaw = base64.match(/^data:.+\/(.+);base64,(.*)$/);
     const cleanBase64 = matchRaw ? matchRaw[2] : base64;
 
-    const buffer = Buffer.from(cleanBase64, 'base64');
-    const folderPath = path.join(process.cwd(), 'data');
-    if (!fs.existsSync(folderPath)) {
-      fs.mkdirSync(folderPath, { recursive: true });
+    // Vercel's filesystem is ephemeral/read-only for application data. MongoDB
+    // is the durable store; keep the local file solely for local development.
+    if (process.env.NODE_ENV !== 'production') {
+      const buffer = Buffer.from(cleanBase64, 'base64');
+      const folderPath = path.join(process.cwd(), 'data');
+      if (!fs.existsSync(folderPath)) {
+        fs.mkdirSync(folderPath, { recursive: true });
+      }
+      fs.writeFileSync(path.join(folderPath, 'resume.pdf'), buffer);
     }
-
-    const filePath = path.join(folderPath, 'resume.pdf');
-    fs.writeFileSync(filePath, buffer);
 
     // Keep local schema synced so the CTA button guides directly to the newly hosted static `/resume.pdf` endpoint!
     db.updateHero({ resumeUrl: '/resume.pdf' });
@@ -1109,6 +1136,9 @@ app.get('/api/v1/admin/stats', verifyToken, (req, res) => {
 
 const startServer = async () => {
   if (process.env.NODE_ENV !== "production") {
+    // Keep Vite and its Rollup native dependency out of the production
+    // serverless function import path. This branch only runs for local dev.
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -1140,6 +1170,16 @@ const startServer = async () => {
   });
 };
 
-startServer().catch(err => {
-  console.error("Failed to boot full-stack server:", err);
-});
+// Only start the server when this file is the process entry point (not when
+// Vercel imports it as a function dependency). This works for both tsx/ESM
+// local development and the CommonJS production bundle.
+const isServerEntrypoint = /(?:^|[\\/])server(?:\.c?js|\.ts)$/.test(process.argv[1] || '');
+if (isServerEntrypoint || process.env.RUN_SERVER === 'true') {
+  startServer().catch(err => {
+    console.error("Failed to boot full-stack server:", err);
+  });
+}
+
+// Export the configured Express app for use in Vercel Functions and other environments
+export default app;
+export { db };

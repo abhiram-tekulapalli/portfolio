@@ -5,6 +5,8 @@
 
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
+import { resolveSrv } from 'dns/promises';
 import bcryptjs from 'bcryptjs';
 import { MongoClient } from 'mongodb';
 import {
@@ -22,6 +24,58 @@ import {
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'database.json');
 
+interface MongoUriDiagnostics {
+  protocol: string;
+  hostname?: string;
+}
+
+const getMongoUriDiagnostics = (uri: string): MongoUriDiagnostics => {
+  try {
+    const parsed = new URL(uri);
+    return { protocol: parsed.protocol.replace(':', ''), hostname: parsed.hostname || undefined };
+  } catch {
+    return { protocol: uri.startsWith('mongodb+srv:') ? 'mongodb+srv' : uri.startsWith('mongodb:') ? 'mongodb' : 'unknown' };
+  }
+};
+
+const sanitizeMongoErrorMessage = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.replace(/mongodb(?:\+srv)?:\/\/[^\s"']+/gi, '[redacted MongoDB URI]');
+};
+
+const logMongoConnectionFailure = async (uri: string, error: unknown) => {
+  const diagnostics = getMongoUriDiagnostics(uri);
+  const mongoError = error as { name?: string; reason?: { servers?: Map<string, unknown> } };
+  const serverAddresses = mongoError.reason?.servers instanceof Map
+    ? [...mongoError.reason.servers.keys()]
+    : undefined;
+
+  console.error('[DATABASE] MongoDB connection failed.', {
+    uriPresent: true,
+    protocol: diagnostics.protocol,
+    hostname: diagnostics.hostname,
+    errorName: mongoError.name || 'UnknownError',
+    errorMessage: sanitizeMongoErrorMessage(error),
+    serverAddresses
+  });
+
+  if (diagnostics.protocol !== 'mongodb+srv' || !diagnostics.hostname) return;
+
+  try {
+    const records = await resolveSrv(`_mongodb._tcp.${diagnostics.hostname}`);
+    console.error('[DATABASE] MongoDB SRV diagnostic.', {
+      hostname: diagnostics.hostname,
+      recordCount: records.length
+    });
+  } catch (dnsError) {
+    console.error('[DATABASE] MongoDB SRV diagnostic failed.', {
+      hostname: diagnostics.hostname,
+      errorName: dnsError instanceof Error ? dnsError.name : 'UnknownError',
+      errorMessage: sanitizeMongoErrorMessage(dnsError)
+    });
+  }
+};
+
 interface DatabaseSchema {
   adminHash: string;
   hero: HeroData;
@@ -37,8 +91,8 @@ interface DatabaseSchema {
 }
 
 // Dynamically generate the default password hash
-const DEFAULT_PASSWORD = 'admin123';
-const DEFAULT_HASH = bcryptjs.hashSync(DEFAULT_PASSWORD, 12);
+const DEFAULT_PASSWORD = process.env.ADMIN_PASSWORD;
+const DEFAULT_HASH = bcryptjs.hashSync(DEFAULT_PASSWORD || crypto.randomBytes(32).toString('hex'), 12);
 
 const INITIAL_DB: DatabaseSchema = {
   adminHash: DEFAULT_HASH,
@@ -86,7 +140,7 @@ const INITIAL_DB: DatabaseSchema = {
     { id: "s4", name: "TypeScript", category: "Languages", order: 4 },
     { id: "s5", name: "HTML5 & CSS3", category: "Languages", order: 5 },
     { id: "s6", name: "SQL", category: "Languages", order: 6 },
-    
+
     // Frameworks
     { id: "f1", name: "React", category: "Frameworks", order: 1 },
     { id: "f2", name: "Node.js", category: "Frameworks", order: 2 },
@@ -101,7 +155,7 @@ const INITIAL_DB: DatabaseSchema = {
     { id: "a4", name: "Pandas", category: "AI/ML", order: 4 },
     { id: "a5", name: "NumPy", category: "AI/ML", order: 5 },
     { id: "a6", name: "OpenCV", category: "AI/ML", order: 6 },
-    
+
     // Databases
     { id: "d1", name: "MongoDB", category: "Databases", order: 1 },
     { id: "d2", name: "MySQL", category: "Databases", order: 2 },
@@ -187,6 +241,15 @@ const INITIAL_DB: DatabaseSchema = {
       credentialId: "TF-DEV-3341",
       certificateUrl: "https://coursera.org/verify/tensorflow-dev",
       order: 3
+    },
+    {
+      id: "c4",
+      title: "Agentic AI Certified Foundations Associate",
+      issuer: "Oracle",
+      dateIssued: "2026-09-03",
+      credentialId: "C5F50858FBEBC83F20CC0F626367AEC76F623660A429EAECE21BCFC8569925FA",
+      certificateUrl: "https://catalog-education.oracle.com/pls/certview/sharebadge?id=C5F50858FBEBC83F20CC0F626367AEC76F623660A429EAECE21BCFC8569925FA",
+      order: 4
     }
   ],
   experience: [
@@ -360,7 +423,7 @@ In the next article, we will go over loading custom chest X-ray datasets from Ka
     siteMeta: {
       pageTitle: "Tekulapalli Abhiram | Portfolio",
       metaDescription: "AI/ML Engineer and Full-Stack Developer Personal Portfolio.",
-      faviconEmoji: "🖥️"
+      faviconEmoji: "ðŸ–¥ï¸"
     },
     smtpConfig: {
       host: "smtp.gmail.com",
@@ -384,61 +447,70 @@ class LocalDatabase {
   private data: DatabaseSchema;
   private mongoClient: MongoClient | null = null;
   private mongoCollection: any = null;
+  private initPromise: Promise<void> | null = null;
 
   constructor() {
     this.data = INITIAL_DB;
-    this.init();
+    this.initPromise = this.init();
+    // Initialization begins during module loading, before a Vercel handler can
+    // await it. Mark the rejection as handled here; ensureInitialized still
+    // rethrows it to the request handler as a controlled 500 response.
+    this.initPromise.catch(() => undefined);
   }
 
   private async init() {
-    // 1. Initial file loading (serves as immediate offline/dev default)
-    try {
-      if (!fs.existsSync(DATA_DIR)) {
-        fs.mkdirSync(DATA_DIR, { recursive: true });
-      }
+    if (process.env.NODE_ENV === 'production' && !DEFAULT_PASSWORD) {
+      throw new Error('ADMIN_PASSWORD must be configured before initializing a production database.');
+    }
 
-      if (fs.existsSync(DB_FILE)) {
-        const fileContent = fs.readFileSync(DB_FILE, 'utf-8');
-        this.data = JSON.parse(fileContent);
-        
-        // Ensure settings visible sections has default if missing
-        if (!this.data.settings) {
-          this.data.settings = INITIAL_DB.settings;
+    // 1. Initial file loading (serves as immediate offline/dev default)
+    if (process.env.NODE_ENV !== 'production') {
+      try {
+        if (!fs.existsSync(DATA_DIR)) {
+          fs.mkdirSync(DATA_DIR, { recursive: true });
         }
-        // Force sync Admin credentials if none exist
-        if (!this.data.adminHash) {
-          this.data.adminHash = DEFAULT_HASH;
+
+        if (fs.existsSync(DB_FILE)) {
+          const fileContent = fs.readFileSync(DB_FILE, 'utf-8');
+          this.data = JSON.parse(fileContent);
+
+          // Ensure settings visible sections has default if missing
+          if (!this.data.settings) {
+            this.data.settings = INITIAL_DB.settings;
+          }
+          // Force sync Admin credentials if none exist
+          if (!this.data.adminHash) {
+            this.data.adminHash = DEFAULT_HASH;
+          }
+        } else {
+          this.saveToDisk();
         }
-      } else {
-        this.saveToDisk();
+      } catch (err) {
+        console.error("[DATABASE] Local database initialization error, using memory fallback.", err);
       }
-    } catch (err) {
-      console.error("[DATABASE] Local database initialization error, using memory fallback.", err);
     }
 
     // 2. Dynamic MongoDB Cloud Sync
     const mongoUri = process.env.MONGODB_URI;
+    if (process.env.NODE_ENV === 'production' && !mongoUri) {
+      throw new Error('MONGODB_URI must be configured in production. MongoDB Atlas is the production data store.');
+    }
     if (mongoUri) {
       console.log("[DATABASE] MONGODB_URI environment variable detected. Connecting to Cloud Database...");
+      let client: MongoClient | null = null;
       try {
-        const client = new MongoClient(mongoUri, {
-          serverSelectionTimeoutMS: 1500,
-          connectTimeoutMS: 1500,
-          socketTimeoutMS: 1500,
+        client = new MongoClient(mongoUri, {
+          serverSelectionTimeoutMS: 10000,
+          connectTimeoutMS: 10000,
+          socketTimeoutMS: 10000,
         });
 
-        const connectWithTimeout = await Promise.race([
-          client.connect(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('MongoDB connection timed out after 1.5s')), 1500))
-        ]).catch((err) => {
-          throw err;
-        });
-        await connectWithTimeout;
-        
+        await client.connect();
+
         const dbName = process.env.MONGODB_DB_NAME || 'portfolio_db';
         const collectionName = process.env.MONGODB_COLLECTION_NAME || 'portfolio_data';
         const collection = client.db(dbName).collection(collectionName);
-        
+
         this.mongoClient = client;
         this.mongoCollection = collection;
 
@@ -448,13 +520,13 @@ class LocalDatabase {
           console.log("[DATABASE] Successfully loaded and synchronized database from MongoDB Atlas!");
           const { _id, ...rest } = cloudDoc as any;
           this.data = rest as DatabaseSchema;
-          
+
           // Double-check settings and adminHash are complete
           if (!this.data.settings) this.data.settings = INITIAL_DB.settings;
           if (!this.data.adminHash) this.data.adminHash = DEFAULT_HASH;
-          
-          // Restore resume.pdf from MongoDB binary base64 if present
-          if (this.data.resumePdfBase64) {
+
+          // Restore resume.pdf from MongoDB binary base64 if present (dev only; in production, route reads from MongoDB)
+          if (this.data.resumePdfBase64 && process.env.NODE_ENV !== 'production') {
             try {
               const buffer = Buffer.from(this.data.resumePdfBase64, 'base64');
               const folderPath = path.join(process.cwd(), 'data');
@@ -468,7 +540,7 @@ class LocalDatabase {
               console.error("[DATABASE] Failed to write resume.pdf on startup:", pdfErr);
             }
           }
-          
+
           // Save a synchronized local disk copy to keep them aligned
           this.saveToDisk(true);
         } else {
@@ -480,7 +552,12 @@ class LocalDatabase {
           );
         }
       } catch (err) {
-        console.error("[DATABASE] Failed to connect or synchronize with MongoDB, using local fallback:", err);
+        await client?.close().catch(() => undefined);
+        await logMongoConnectionFailure(mongoUri, err);
+        if (process.env.NODE_ENV === 'production') {
+          throw err;
+        }
+        console.error("[DATABASE] Failed to connect or synchronize with MongoDB, using local fallback.");
       }
     } else {
       console.log("[DATABASE] Running in Local Storage mode using 'data/database.json'. To persist changes on ephemeral servers (like Render or Vercel), provide 'MONGODB_URI' in environment variables.");
@@ -488,11 +565,13 @@ class LocalDatabase {
   }
 
   private saveToDisk(skipCloud = false) {
-    // Save to local disk
-    try {
-      fs.writeFileSync(DB_FILE, JSON.stringify(this.data, null, 2), 'utf-8');
-    } catch (err) {
-      console.error("[DATABASE] Failed to write database to disk:", err);
+    // Save to local disk only in development; in production (Vercel), rely on MongoDB
+    if (process.env.NODE_ENV !== 'production') {
+      try {
+        fs.writeFileSync(DB_FILE, JSON.stringify(this.data, null, 2), 'utf-8');
+      } catch (err) {
+        console.error("[DATABASE] Failed to write database to disk:", err);
+      }
     }
 
     // Asynchronously save to MongoDB (non-blocking)
@@ -541,7 +620,7 @@ class LocalDatabase {
 
   // Skills
   public getSkills(): Skill[] {
-    return this.data.skills.sort((a,b) => a.order - b.order);
+    return [...this.data.skills].sort((a, b) => a.order - b.order);
   }
 
   public addSkill(name: string, category: string): Skill {
@@ -577,7 +656,7 @@ class LocalDatabase {
 
   // Projects
   public getProjects(): Project[] {
-    return this.data.projects.sort((a,b) => a.order - b.order);
+    return [...this.data.projects].sort((a, b) => a.order - b.order);
   }
 
   public addProject(proj: Omit<Project, 'id'>): Project {
@@ -616,7 +695,7 @@ class LocalDatabase {
 
   // Certifications
   public getCertifications(): Certification[] {
-    return this.data.certifications.sort((a,b) => a.order - b.order);
+    return [...this.data.certifications].sort((a, b) => a.order - b.order);
   }
 
   public addCertification(cert: Omit<Certification, 'id'>): Certification {
@@ -646,7 +725,7 @@ class LocalDatabase {
 
   // Experience
   public getExperiences(): Experience[] {
-    return this.data.experience.sort((a,b) => a.order - b.order);
+    return [...this.data.experience].sort((a, b) => a.order - b.order);
   }
 
   public addExperience(exp: Omit<Experience, 'id'>): Experience {
@@ -676,7 +755,7 @@ class LocalDatabase {
 
   // Education
   public getEducations(): Education[] {
-    return this.data.education.sort((a,b) => a.order - b.order);
+    return [...this.data.education].sort((a, b) => a.order - b.order);
   }
 
   public addEducation(edu: Omit<Education, 'id'>): Education {
@@ -710,7 +789,7 @@ class LocalDatabase {
       ...b,
       category: b.category || b.tags[0] || 'Engineering'
     }));
-    return list.sort((a,b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+    return list.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
   }
 
   public getBlogBySlug(slug: string): Blog | undefined {
@@ -727,7 +806,7 @@ class LocalDatabase {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)+/g, '');
-    
+
     // Simple words estimate for read-time
     const words = blog.content.split(/\s+/).length;
     const readTime = Math.max(1, Math.round(words / 200));
@@ -749,7 +828,7 @@ class LocalDatabase {
     if (idx === -1) throw new Error("Blog not found");
 
     const merged = { ...this.data.blogs[idx], ...updated };
-    
+
     if (updated.title) {
       merged.slug = updated.title
         .toLowerCase()
@@ -791,14 +870,14 @@ class LocalDatabase {
     try {
       const parsed = JSON.parse(jsonString);
       if (
-        parsed.hero && 
-        parsed.about && 
-        parsed.skills && 
-        parsed.projects && 
-        parsed.certifications && 
-        parsed.experience && 
-        parsed.education && 
-        parsed.blogs && 
+        parsed.hero &&
+        parsed.about &&
+        parsed.skills &&
+        parsed.projects &&
+        parsed.certifications &&
+        parsed.experience &&
+        parsed.education &&
+        parsed.blogs &&
         parsed.settings
       ) {
         this.data = parsed;
@@ -823,6 +902,14 @@ class LocalDatabase {
       adminHash: this.data.adminHash // preserve password hash
     };
     this.saveToDisk();
+  }
+
+  // Ensures MongoDB connection is fully initialized before processing requests
+  // Used by Vercel Function wrapper to safely handle cold starts
+  public async ensureInitialized(): Promise<void> {
+    if (this.initPromise) {
+      await this.initPromise;
+    }
   }
 }
 

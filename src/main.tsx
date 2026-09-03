@@ -3,12 +3,11 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
-// Use VITE_API_BASE_URL when provided (including production) so frontend can
-// talk directly to the backend if needed. Fall back to the Render backend
-// when deployed to Vercel and the env var is missing.
+// Production always uses the same Vercel origin. This preserves JWT cookies and
+// keeps the frontend independent of the legacy Render backend. A custom base is
+// supported only for local development against a separately started API server.
 const envApiBase = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
-const renderBackend = 'https://portfolio-rty5.onrender.com';
-const apiBaseUrl = envApiBase || (import.meta.env.DEV ? 'http://localhost:3000' : renderBackend);
+const apiBaseUrl = import.meta.env.DEV ? (envApiBase || 'http://localhost:3000') : '';
 const originalFetch = window.fetch.bind(window);
 
 window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
@@ -18,8 +17,9 @@ window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   }
 
   if (input instanceof Request && input.url.startsWith(window.location.origin + '/api/')) {
-    const targetUrl = apiBaseUrl ? `${apiBaseUrl}${new URL(input.url).pathname}` : input.url;
-    return originalFetch(targetUrl, { ...init, credentials: 'include', method: input.method, headers: input.headers, body: input.body });
+    const requestUrl = new URL(input.url);
+    const targetUrl = apiBaseUrl ? `${apiBaseUrl}${requestUrl.pathname}${requestUrl.search}` : input.url;
+    return originalFetch(targetUrl, { ...init, credentials: 'include', method: input.method, headers: input.headers, body: input.body, signal: input.signal });
   }
 
   return originalFetch(input, { ...init, credentials: 'include' });

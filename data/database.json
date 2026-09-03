@@ -225,7 +225,17 @@
     }
   ],
   "projects": [],
-  "certifications": [],
+  "certifications": [
+    {
+      "id": "c4",
+      "title": "Agentic AI Certified Foundations Associate",
+      "issuer": "Oracle",
+      "dateIssued": "2026-09-03",
+      "credentialId": "C5F50858FBEBC83F20CC0F626367AEC76F623660A429EAECE21BCFC8569925FA",
+      "certificateUrl": "https://catalog-education.oracle.com/pls/certview/sharebadge?id=C5F50858FBEBC83F20CC0F626367AEC76F623660A429EAECE21BCFC8569925FA",
+      "order": 4
+    }
+  ],
   "experience": [
     {
       "role": "Delegate Training and Orientations Intern",
