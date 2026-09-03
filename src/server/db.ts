@@ -5,6 +5,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import bcryptjs from 'bcryptjs';
 import { MongoClient } from 'mongodb';
 import {
@@ -37,8 +38,8 @@ interface DatabaseSchema {
 }
 
 // Dynamically generate the default password hash
-const DEFAULT_PASSWORD = 'admin123';
-const DEFAULT_HASH = bcryptjs.hashSync(DEFAULT_PASSWORD, 12);
+const DEFAULT_PASSWORD = process.env.ADMIN_PASSWORD;
+const DEFAULT_HASH = bcryptjs.hashSync(DEFAULT_PASSWORD || crypto.randomBytes(32).toString('hex'), 12);
 
 const INITIAL_DB: DatabaseSchema = {
   adminHash: DEFAULT_HASH,
@@ -187,6 +188,15 @@ const INITIAL_DB: DatabaseSchema = {
       credentialId: "TF-DEV-3341",
       certificateUrl: "https://coursera.org/verify/tensorflow-dev",
       order: 3
+    },
+    {
+      id: "c4",
+      title: "Agentic AI Certified Foundations Associate",
+      issuer: "Oracle",
+      dateIssued: "2026-09-03",
+      credentialId: "C5F50858FBEBC83F20CC0F626367AEC76F623660A429EAECE21BCFC8569925FA",
+      certificateUrl: "https://catalog-education.oracle.com/pls/certview/sharebadge?id=C5F50858FBEBC83F20CC0F626367AEC76F623660A429EAECE21BCFC8569925FA",
+      order: 4
     }
   ],
   experience: [
@@ -360,7 +370,7 @@ In the next article, we will go over loading custom chest X-ray datasets from Ka
     siteMeta: {
       pageTitle: "Tekulapalli Abhiram | Portfolio",
       metaDescription: "AI/ML Engineer and Full-Stack Developer Personal Portfolio.",
-      faviconEmoji: "🖥️"
+      faviconEmoji: "ðŸ–¥ï¸"
     },
     smtpConfig: {
       host: "smtp.gmail.com",
@@ -384,10 +394,11 @@ class LocalDatabase {
   private data: DatabaseSchema;
   private mongoClient: MongoClient | null = null;
   private mongoCollection: any = null;
+  private initPromise: Promise<void> | null = null;
 
   constructor() {
     this.data = INITIAL_DB;
-    this.init();
+    this.initPromise = this.init();
   }
 
   private async init() {
@@ -410,6 +421,9 @@ class LocalDatabase {
           this.data.adminHash = DEFAULT_HASH;
         }
       } else {
+        if (process.env.NODE_ENV === 'production' && !DEFAULT_PASSWORD) {
+          throw new Error('ADMIN_PASSWORD must be configured before initializing a production database.');
+        }
         this.saveToDisk();
       }
     } catch (err) {
@@ -453,8 +467,8 @@ class LocalDatabase {
           if (!this.data.settings) this.data.settings = INITIAL_DB.settings;
           if (!this.data.adminHash) this.data.adminHash = DEFAULT_HASH;
 
-          // Restore resume.pdf from MongoDB binary base64 if present
-          if (this.data.resumePdfBase64) {
+          // Restore resume.pdf from MongoDB binary base64 if present (dev only; in production, route reads from MongoDB)
+          if (this.data.resumePdfBase64 && process.env.NODE_ENV !== 'production') {
             try {
               const buffer = Buffer.from(this.data.resumePdfBase64, 'base64');
               const folderPath = path.join(process.cwd(), 'data');
@@ -488,11 +502,13 @@ class LocalDatabase {
   }
 
   private saveToDisk(skipCloud = false) {
-    // Save to local disk
-    try {
-      fs.writeFileSync(DB_FILE, JSON.stringify(this.data, null, 2), 'utf-8');
-    } catch (err) {
-      console.error("[DATABASE] Failed to write database to disk:", err);
+    // Save to local disk only in development; in production (Vercel), rely on MongoDB
+    if (process.env.NODE_ENV !== 'production') {
+      try {
+        fs.writeFileSync(DB_FILE, JSON.stringify(this.data, null, 2), 'utf-8');
+      } catch (err) {
+        console.error("[DATABASE] Failed to write database to disk:", err);
+      }
     }
 
     // Asynchronously save to MongoDB (non-blocking)
@@ -541,7 +557,7 @@ class LocalDatabase {
 
   // Skills
   public getSkills(): Skill[] {
-    return this.data.skills.sort((a, b) => a.order - b.order);
+    return [...this.data.skills].sort((a, b) => a.order - b.order);
   }
 
   public addSkill(name: string, category: string): Skill {
@@ -577,7 +593,7 @@ class LocalDatabase {
 
   // Projects
   public getProjects(): Project[] {
-    return this.data.projects.sort((a, b) => a.order - b.order);
+    return [...this.data.projects].sort((a, b) => a.order - b.order);
   }
 
   public addProject(proj: Omit<Project, 'id'>): Project {
@@ -616,7 +632,7 @@ class LocalDatabase {
 
   // Certifications
   public getCertifications(): Certification[] {
-    return this.data.certifications.sort((a, b) => a.order - b.order);
+    return [...this.data.certifications].sort((a, b) => a.order - b.order);
   }
 
   public addCertification(cert: Omit<Certification, 'id'>): Certification {
@@ -646,7 +662,7 @@ class LocalDatabase {
 
   // Experience
   public getExperiences(): Experience[] {
-    return this.data.experience.sort((a, b) => a.order - b.order);
+    return [...this.data.experience].sort((a, b) => a.order - b.order);
   }
 
   public addExperience(exp: Omit<Experience, 'id'>): Experience {
@@ -676,7 +692,7 @@ class LocalDatabase {
 
   // Education
   public getEducations(): Education[] {
-    return this.data.education.sort((a, b) => a.order - b.order);
+    return [...this.data.education].sort((a, b) => a.order - b.order);
   }
 
   public addEducation(edu: Omit<Education, 'id'>): Education {
@@ -823,6 +839,14 @@ class LocalDatabase {
       adminHash: this.data.adminHash // preserve password hash
     };
     this.saveToDisk();
+  }
+
+  // Ensures MongoDB connection is fully initialized before processing requests
+  // Used by Vercel Function wrapper to safely handle cold starts
+  public async ensureInitialized(): Promise<void> {
+    if (this.initPromise) {
+      await this.initPromise;
+    }
   }
 }
 

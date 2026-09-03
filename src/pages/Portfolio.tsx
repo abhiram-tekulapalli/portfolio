@@ -1246,7 +1246,7 @@ export default function Portfolio() {
                   <div id="leetcode-badges" className="flex flex-col gap-2">
                     <span className="font-mono text-[9px] uppercase tracking-widest text-text-muted">Milestone Badges Earned:</span>
                     <div className="flex flex-wrap gap-2 mt-1">
-                      {leetcode.badges.map((b, i) => (
+                      {(leetcode.badges || []).map((b, i) => (
                         <span key={i} className="font-mono text-[10px] border border-border-brand bg-bg-brand text-text-primary px-3 py-1 scale-95 uppercase tracking-wide">
                           {b.name}
                         </span>
@@ -1317,7 +1317,7 @@ export default function Portfolio() {
                   <div id="github-languages" className="mt-8">
                     <span className="font-mono text-[9px] uppercase tracking-widest text-text-muted block">Core Languages Percentage:</span>
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
-                      {github.topLanguages.map(l => (
+                      {(github.topLanguages || []).map(l => (
                         <div key={l.name} className="border border-border-brand/60 bg-bg-brand p-3 rounded">
                           <span className="font-mono text-xs text-white block font-bold leading-none">{l.name}</span>
                           <span className="font-mono text-[10px] text-text-muted/60 mt-1.5 block leading-none">{l.percentage}% use-frequency</span>
