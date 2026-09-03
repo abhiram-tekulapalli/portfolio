@@ -9,7 +9,6 @@ import path from 'path';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
-import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import { db } from './src/server/db.js';
 
@@ -1137,6 +1136,9 @@ app.get('/api/v1/admin/stats', verifyToken, (req, res) => {
 
 const startServer = async () => {
   if (process.env.NODE_ENV !== "production") {
+    // Keep Vite and its Rollup native dependency out of the production
+    // serverless function import path. This branch only runs for local dev.
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
