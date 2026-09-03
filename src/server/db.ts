@@ -446,14 +446,14 @@ class LocalDatabase {
       console.log("[DATABASE] MONGODB_URI environment variable detected. Connecting to Cloud Database...");
       try {
         const client = new MongoClient(mongoUri, {
-          serverSelectionTimeoutMS: 1500,
-          connectTimeoutMS: 1500,
+          serverSelectionTimeoutMS: 10000,
+          connectTimeoutMS: 10000,
           socketTimeoutMS: 1500,
         });
 
         const connectWithTimeout = await Promise.race([
           client.connect(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('MongoDB connection timed out after 1.5s')), 1500))
+          new Promise((_, reject) => setTimeout(() => reject(new Error('MongoDB connection timed out after 10s')), 10000))
         ]).catch((err) => {
           throw err;
         });
