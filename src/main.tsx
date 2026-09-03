@@ -3,10 +3,11 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
-// Use VITE_API_BASE_URL only when the frontend must call a separate backend.
-// Otherwise keep API calls same-origin so Vercel's proxy can preserve cookies.
+// Production always uses the same Vercel origin. This preserves JWT cookies and
+// keeps the frontend independent of the legacy Render backend. A custom base is
+// supported only for local development against a separately started API server.
 const envApiBase = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
-const apiBaseUrl = envApiBase || (import.meta.env.DEV ? 'http://localhost:3000' : '');
+const apiBaseUrl = import.meta.env.DEV ? (envApiBase || 'http://localhost:3000') : '';
 const originalFetch = window.fetch.bind(window);
 
 window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {

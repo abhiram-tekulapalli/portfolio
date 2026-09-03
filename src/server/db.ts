@@ -399,39 +399,49 @@ class LocalDatabase {
   constructor() {
     this.data = INITIAL_DB;
     this.initPromise = this.init();
+    // Initialization begins during module loading, before a Vercel handler can
+    // await it. Mark the rejection as handled here; ensureInitialized still
+    // rethrows it to the request handler as a controlled 500 response.
+    this.initPromise.catch(() => undefined);
   }
 
   private async init() {
+    if (process.env.NODE_ENV === 'production' && !DEFAULT_PASSWORD) {
+      throw new Error('ADMIN_PASSWORD must be configured before initializing a production database.');
+    }
+
     // 1. Initial file loading (serves as immediate offline/dev default)
-    try {
-      if (!fs.existsSync(DATA_DIR)) {
-        fs.mkdirSync(DATA_DIR, { recursive: true });
-      }
+    if (process.env.NODE_ENV !== 'production') {
+      try {
+        if (!fs.existsSync(DATA_DIR)) {
+          fs.mkdirSync(DATA_DIR, { recursive: true });
+        }
 
-      if (fs.existsSync(DB_FILE)) {
-        const fileContent = fs.readFileSync(DB_FILE, 'utf-8');
-        this.data = JSON.parse(fileContent);
+        if (fs.existsSync(DB_FILE)) {
+          const fileContent = fs.readFileSync(DB_FILE, 'utf-8');
+          this.data = JSON.parse(fileContent);
 
-        // Ensure settings visible sections has default if missing
-        if (!this.data.settings) {
-          this.data.settings = INITIAL_DB.settings;
+          // Ensure settings visible sections has default if missing
+          if (!this.data.settings) {
+            this.data.settings = INITIAL_DB.settings;
+          }
+          // Force sync Admin credentials if none exist
+          if (!this.data.adminHash) {
+            this.data.adminHash = DEFAULT_HASH;
+          }
+        } else {
+          this.saveToDisk();
         }
-        // Force sync Admin credentials if none exist
-        if (!this.data.adminHash) {
-          this.data.adminHash = DEFAULT_HASH;
-        }
-      } else {
-        if (process.env.NODE_ENV === 'production' && !DEFAULT_PASSWORD) {
-          throw new Error('ADMIN_PASSWORD must be configured before initializing a production database.');
-        }
-        this.saveToDisk();
+      } catch (err) {
+        console.error("[DATABASE] Local database initialization error, using memory fallback.", err);
       }
-    } catch (err) {
-      console.error("[DATABASE] Local database initialization error, using memory fallback.", err);
     }
 
     // 2. Dynamic MongoDB Cloud Sync
     const mongoUri = process.env.MONGODB_URI;
+    if (process.env.NODE_ENV === 'production' && !mongoUri) {
+      throw new Error('MONGODB_URI must be configured in production. MongoDB Atlas is the production data store.');
+    }
     if (mongoUri) {
       console.log("[DATABASE] MONGODB_URI environment variable detected. Connecting to Cloud Database...");
       try {
@@ -495,6 +505,9 @@ class LocalDatabase {
         }
       } catch (err) {
         console.error("[DATABASE] Failed to connect or synchronize with MongoDB, using local fallback:", err);
+        if (process.env.NODE_ENV === 'production') {
+          throw err;
+        }
       }
     } else {
       console.log("[DATABASE] Running in Local Storage mode using 'data/database.json'. To persist changes on ephemeral servers (like Render or Vercel), provide 'MONGODB_URI' in environment variables.");

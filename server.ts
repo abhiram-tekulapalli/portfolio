@@ -893,8 +893,10 @@ app.get('/api/v1/hydrate', async (req, res) => {
     };
 
     // If integration caches are empty, try to fetch them server-side quickly
-    // to reduce frontend stalls. Use BACKEND_URL if provided or localhost with PORT.
-    const backendBase = (process.env.BACKEND_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
+    // while keeping the request on the current deployment.
+    // Stay on the current deployment.  In particular, do not use BACKEND_URL
+    // here: on Vercel that value may still point to the old Render deployment.
+    const backendBase = `${isHttpsRequest(req) ? 'https' : 'http'}://${req.get('host')}`;
 
     const fetchWithTimeout = async (url: string, timeoutMs = 6000) => {
       const controller = new AbortController();
@@ -1047,20 +1049,20 @@ app.post('/api/v1/admin/reset-default', verifyToken, (req, res) => {
 // --- STATIC RESUME HOSTING SERVICE ---
 app.get('/resume.pdf', (req, res) => {
   const filePath = path.join(process.cwd(), 'data', 'resume.pdf');
-  
+
   // Try local file first (works in dev)
   if (fs.existsSync(filePath)) {
     res.contentType("application/pdf");
     return res.sendFile(filePath);
   }
-  
+
   // In production (Vercel), serve from MongoDB Base64
   try {
     const hero = db.getHero();
     if (hero && hero.resumeUrl && hero.resumeUrl.startsWith('http')) {
       return res.redirect(hero.resumeUrl);
     }
-    
+
     // Try to read from database Base64 storage (MongoDB in production)
     const exportedData = db.exportData();
     const data = JSON.parse(exportedData);
@@ -1073,7 +1075,7 @@ app.get('/resume.pdf', (req, res) => {
   } catch (e) {
     console.error('Error reading resume from database:', e);
   }
-  
+
   res.status(404).send("Document not uploaded yet. Go to the Admin dashboard settings to upload your custom PDF resume!");
 });
 
@@ -1088,14 +1090,16 @@ app.post('/api/v1/resume/upload', verifyToken, (req, res) => {
     const matchRaw = base64.match(/^data:.+\/(.+);base64,(.*)$/);
     const cleanBase64 = matchRaw ? matchRaw[2] : base64;
 
-    const buffer = Buffer.from(cleanBase64, 'base64');
-    const folderPath = path.join(process.cwd(), 'data');
-    if (!fs.existsSync(folderPath)) {
-      fs.mkdirSync(folderPath, { recursive: true });
+    // Vercel's filesystem is ephemeral/read-only for application data. MongoDB
+    // is the durable store; keep the local file solely for local development.
+    if (process.env.NODE_ENV !== 'production') {
+      const buffer = Buffer.from(cleanBase64, 'base64');
+      const folderPath = path.join(process.cwd(), 'data');
+      if (!fs.existsSync(folderPath)) {
+        fs.mkdirSync(folderPath, { recursive: true });
+      }
+      fs.writeFileSync(path.join(folderPath, 'resume.pdf'), buffer);
     }
-
-    const filePath = path.join(folderPath, 'resume.pdf');
-    fs.writeFileSync(filePath, buffer);
 
     // Keep local schema synced so the CTA button guides directly to the newly hosted static `/resume.pdf` endpoint!
     db.updateHero({ resumeUrl: '/resume.pdf' });
@@ -1164,9 +1168,11 @@ const startServer = async () => {
   });
 };
 
-// Only start the server if this module is run directly (not imported by Vercel Functions)
-// Vercel Functions will import the app and invoke it as a handler
-if (require.main === module || process.env.RUN_SERVER === 'true') {
+// Only start the server when this file is the process entry point (not when
+// Vercel imports it as a function dependency). This works for both tsx/ESM
+// local development and the CommonJS production bundle.
+const isServerEntrypoint = /(?:^|[\\/])server(?:\.c?js|\.ts)$/.test(process.argv[1] || '');
+if (isServerEntrypoint || process.env.RUN_SERVER === 'true') {
   startServer().catch(err => {
     console.error("Failed to boot full-stack server:", err);
   });
