@@ -6,6 +6,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { resolveSrv } from 'dns/promises';
 import bcryptjs from 'bcryptjs';
 import { MongoClient } from 'mongodb';
 import {
@@ -22,6 +23,58 @@ import {
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'database.json');
+
+interface MongoUriDiagnostics {
+  protocol: string;
+  hostname?: string;
+}
+
+const getMongoUriDiagnostics = (uri: string): MongoUriDiagnostics => {
+  try {
+    const parsed = new URL(uri);
+    return { protocol: parsed.protocol.replace(':', ''), hostname: parsed.hostname || undefined };
+  } catch {
+    return { protocol: uri.startsWith('mongodb+srv:') ? 'mongodb+srv' : uri.startsWith('mongodb:') ? 'mongodb' : 'unknown' };
+  }
+};
+
+const sanitizeMongoErrorMessage = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.replace(/mongodb(?:\+srv)?:\/\/[^\s"']+/gi, '[redacted MongoDB URI]');
+};
+
+const logMongoConnectionFailure = async (uri: string, error: unknown) => {
+  const diagnostics = getMongoUriDiagnostics(uri);
+  const mongoError = error as { name?: string; reason?: { servers?: Map<string, unknown> } };
+  const serverAddresses = mongoError.reason?.servers instanceof Map
+    ? [...mongoError.reason.servers.keys()]
+    : undefined;
+
+  console.error('[DATABASE] MongoDB connection failed.', {
+    uriPresent: true,
+    protocol: diagnostics.protocol,
+    hostname: diagnostics.hostname,
+    errorName: mongoError.name || 'UnknownError',
+    errorMessage: sanitizeMongoErrorMessage(error),
+    serverAddresses
+  });
+
+  if (diagnostics.protocol !== 'mongodb+srv' || !diagnostics.hostname) return;
+
+  try {
+    const records = await resolveSrv(`_mongodb._tcp.${diagnostics.hostname}`);
+    console.error('[DATABASE] MongoDB SRV diagnostic.', {
+      hostname: diagnostics.hostname,
+      recordCount: records.length
+    });
+  } catch (dnsError) {
+    console.error('[DATABASE] MongoDB SRV diagnostic failed.', {
+      hostname: diagnostics.hostname,
+      errorName: dnsError instanceof Error ? dnsError.name : 'UnknownError',
+      errorMessage: sanitizeMongoErrorMessage(dnsError)
+    });
+  }
+};
 
 interface DatabaseSchema {
   adminHash: string;
@@ -444,20 +497,15 @@ class LocalDatabase {
     }
     if (mongoUri) {
       console.log("[DATABASE] MONGODB_URI environment variable detected. Connecting to Cloud Database...");
+      let client: MongoClient | null = null;
       try {
-        const client = new MongoClient(mongoUri, {
+        client = new MongoClient(mongoUri, {
           serverSelectionTimeoutMS: 10000,
           connectTimeoutMS: 10000,
-          socketTimeoutMS: 1500,
+          socketTimeoutMS: 10000,
         });
 
-        const connectWithTimeout = await Promise.race([
-          client.connect(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('MongoDB connection timed out after 10s')), 10000))
-        ]).catch((err) => {
-          throw err;
-        });
-        await connectWithTimeout;
+        await client.connect();
 
         const dbName = process.env.MONGODB_DB_NAME || 'portfolio_db';
         const collectionName = process.env.MONGODB_COLLECTION_NAME || 'portfolio_data';
@@ -504,10 +552,12 @@ class LocalDatabase {
           );
         }
       } catch (err) {
-        console.error("[DATABASE] Failed to connect or synchronize with MongoDB, using local fallback:", err);
+        await client?.close().catch(() => undefined);
+        await logMongoConnectionFailure(mongoUri, err);
         if (process.env.NODE_ENV === 'production') {
           throw err;
         }
+        console.error("[DATABASE] Failed to connect or synchronize with MongoDB, using local fallback.");
       }
     } else {
       console.log("[DATABASE] Running in Local Storage mode using 'data/database.json'. To persist changes on ephemeral servers (like Render or Vercel), provide 'MONGODB_URI' in environment variables.");
