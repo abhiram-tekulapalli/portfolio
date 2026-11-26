@@ -428,16 +428,16 @@ In the next article, we will go over loading custom chest X-ray datasets from Ka
     smtpConfig: {
       host: "smtp.gmail.com",
       port: 587,
-      user: "pokephantom98765@gmail.com",
-      pass: "",
+      user: "signaldeskagent@gmail.com",
+      pass: "Abhiram@123",
       fromName: "Portfolio Portal",
-      toEmail: "pokephantom98765@gmail.com"
+      toEmail: "abhiramtekulapalli@gmail.com"
     },
     socials: {
-      github: "https://github.com/abhiram-tp",
-      linkedin: "https://linkedin.com/in/tekula-palli-abhiram",
-      instagram: "https://instagram.com/abhiram_tp",
-      email: "pokephantom98765@gmail.com",
+      github: "https://github.com/abhiram-tekulapalli",
+      linkedin: "https://linkedin.com/in/abhiram-tekulapalli",
+      instagram: "https://instagram.com/abhi_guptha_24",
+      email: "abhiramtekulapalli@gmail.com",
       twitter: "https://twitter.com/abhiram_tp"
     }
   }

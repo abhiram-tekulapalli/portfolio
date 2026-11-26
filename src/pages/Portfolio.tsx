@@ -4,22 +4,22 @@
  */
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { 
-  ArrowRight, 
-  ArrowDown, 
-  Github, 
-  Linkedin, 
-  Instagram, 
-  Twitter, 
-  Mail, 
-  Code, 
-  Award, 
-  FileText, 
-  ExternalLink, 
-  Send, 
-  MapPin, 
-  BookOpen, 
-  Clock, 
+import {
+  ArrowRight,
+  ArrowDown,
+  Github,
+  Linkedin,
+  Instagram,
+  Twitter,
+  Mail,
+  Code,
+  Award,
+  FileText,
+  ExternalLink,
+  Send,
+  MapPin,
+  BookOpen,
+  Clock,
   Terminal,
   Activity,
   Flame,
@@ -29,27 +29,27 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import Navbar from '../components/Navbar.tsx';
 import Footer from '../components/Footer.tsx';
-import { 
-  ProjectSkeleton, 
-  CertSkeleton, 
-  BlogSkeleton, 
-  ExperienceSkeleton, 
-  SkillCategorySkeleton, 
-  GithubSkeleton, 
+import {
+  ProjectSkeleton,
+  CertSkeleton,
+  BlogSkeleton,
+  ExperienceSkeleton,
+  SkillCategorySkeleton,
+  GithubSkeleton,
   LeetcodeSkeleton,
   SkeletonPulse,
   CertificateSkeleton,
   EducationSkeleton
 } from '../components/Skeleton.tsx';
-import { 
-  HeroData, 
-  AboutData, 
-  Skill, 
-  Project, 
-  Certification, 
-  Experience, 
-  Education, 
-  Blog, 
+import {
+  HeroData,
+  AboutData,
+  Skill,
+  Project,
+  Certification,
+  Experience,
+  Education,
+  Blog,
   SettingsData,
   LeetCodeStats,
   GitHubStats
@@ -162,7 +162,7 @@ function Typewriter({ words }: { words: string[] }) {
 
   useEffect(() => {
     if (!words || words.length === 0) return;
-    
+
     const handleType = () => {
       const fullWord = words[currentWordIndex];
       if (!isDeleting) {
@@ -310,18 +310,18 @@ export default function Portfolio() {
       const total = github.commitsThisYear || 524;
       const daysCount = 53 * 7; // 371 grid blocks
       const list: { date: string; commits: number }[] = [];
-      
+
       let remaining = total;
       const today = new Date();
-      
+
       for (let i = daysCount - 1; i >= 0; i--) {
         const d = new Date(today.getTime());
         d.setDate(today.getDate() - i);
-        
+
         // Dynamic seed formula to keep the distribution grid consistent and biological
         const seed = d.getDate() * 11 + d.getMonth() * 37 + d.getFullYear() * 3;
         let count = 0;
-        
+
         if (remaining > 0) {
           if (seed % 17 === 0) {
             count = Math.min(remaining, Math.floor((seed % 6) + 3)); // 3 to 8
@@ -332,13 +332,13 @@ export default function Portfolio() {
           }
           remaining -= count;
         }
-        
+
         list.push({
           date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
           commits: count
         });
       }
-      
+
       // Distribute any remaining leftovers over active cycles to hit the target total commits exactly
       let safetyLimit = 0;
       while (remaining > 0 && safetyLimit < 1000) {
@@ -500,8 +500,8 @@ export default function Portfolio() {
   };
 
   const finalSettings = settings || {
-    leetcodeUsername: "abhiram_tp",
-    githubUsername: "abhiram-tp",
+    leetcodeUsername: "abhiram_tekulapalli",
+    githubUsername: "abhiram-tekulapalli",
     sectionVisibility: {
       about: true,
       skills: true,
@@ -523,8 +523,8 @@ export default function Portfolio() {
   // Extract unique project category tabs dynamically
   const dynamicTags = ['All', ...Array.from(new Set(projects.map(p => p.category)))];
 
-  const filteredProjects = projectFilter === 'All' 
-    ? projects 
+  const filteredProjects = projectFilter === 'All'
+    ? projects
     : projects.filter(p => p.category === projectFilter);
 
   return (
@@ -816,10 +816,10 @@ export default function Portfolio() {
                 </>
               ) : (
                 Array.from(new Set([
-                  'Languages', 
-                  'Frameworks', 
-                  'AI/ML', 
-                  'Databases', 
+                  'Languages',
+                  'Frameworks',
+                  'AI/ML',
+                  'Databases',
                   'Tools',
                   ...skills.map(s => s.category)
                 ].map(c => c.trim()).filter(Boolean))).map(category => {
@@ -881,11 +881,10 @@ export default function Portfolio() {
                     key={tag}
                     id={`proj-filter-${tag}`}
                     onClick={() => setProjectFilter(tag)}
-                    className={`font-mono text-[10px] uppercase tracking-wider px-3.5 py-1.5 transition-colors ${
-                      projectFilter === tag 
-                        ? 'bg-white text-black font-semibold' 
-                        : 'text-text-muted hover:text-white'
-                    }`}
+                    className={`font-mono text-[10px] uppercase tracking-wider px-3.5 py-1.5 transition-colors ${projectFilter === tag
+                      ? 'bg-white text-black font-semibold'
+                      : 'text-text-muted hover:text-white'
+                      }`}
                   >
                     {tag}
                   </button>
@@ -1071,8 +1070,8 @@ export default function Portfolio() {
                       {/* Range and Employment tags wrapper */}
                       <div className="flex flex-wrap items-center gap-3 text-xs font-mono text-text-muted">
                         <span>
-                          {new Date(e.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} 
-                          &nbsp;–&nbsp; 
+                          {new Date(e.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                          &nbsp;–&nbsp;
                           {e.current ? 'Present' : new Date(e.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                         </span>
                         <span className="border border-border-brand px-2 py-0.5 text-[9px] uppercase tracking-widest rounded-full">{e.type}</span>
@@ -1151,11 +1150,11 @@ export default function Portfolio() {
                       <span className="font-mono text-[10px] uppercase tracking-widest text-text-muted font-bold block">{ed.startYear} - {ed.current ? 'Present' : ed.endYear}</span>
                       <h3 className="font-display text-lg font-bold text-white mt-1">{ed.institution}</h3>
                       <p className="font-mono text-xs text-white/80 mt-1">{ed.degree} in {ed.field}</p>
-                      
+
                       {/* Course codes in row */}
                       {ed.coursework && ed.coursework.length > 0 && (
                         <p className="text-text-muted text-xs leading-relaxed mt-4 font-light">
-                          <span className="font-mono font-bold text-[9px] uppercase tracking-wider text-white mr-2">Focus Coursework:</span> 
+                          <span className="font-mono font-bold text-[9px] uppercase tracking-wider text-white mr-2">Focus Coursework:</span>
                           {ed.coursework.join(', ')}
                         </p>
                       )}
@@ -1165,7 +1164,7 @@ export default function Portfolio() {
                     <div className="md:w-1/3 flex flex-col md:items-end justify-center py-2 md:border-l md:border-border-brand/40 md:pl-8">
                       <span className="font-mono text-[10px] uppercase tracking-widest text-text-muted block leading-none">{ed.scoreType}</span>
                       <span className="font-display text-3xl font-extrabold text-white mt-1 block leading-none">{ed.score}</span>
-                      
+
                       {/* Achievements bullets */}
                       {ed.achievements && ed.achievements.length > 0 && (
                         <ul className="mt-3.5 space-y-1 text-left md:text-right font-light text-text-muted text-[11px] list-none">
@@ -1305,8 +1304,8 @@ export default function Portfolio() {
 
                   {/* Dynamic grayscale SVG readouts embed */}
                   <div className="mt-6 overflow-hidden flex justify-center bg-black/60 p-4 border border-border-brand/40">
-                    <img 
-                      src={`https://github-readme-stats.vercel.app/api?username=${github.username}&show_icons=true&theme=dark&bg_color=080808&text_color=555555&title_color=ffffff&icon_color=ffffff&hide_border=true&border_color=1f1f1f`} 
+                    <img
+                      src={`https://github-readme-stats.vercel.app/api?username=${github.username}&show_icons=true&theme=dark&bg_color=080808&text_color=555555&title_color=ffffff&icon_color=ffffff&hide_border=true&border_color=1f1f1f`}
                       alt="GitHub Readme Stats"
                       className="grayscale select-none pointer-events-none max-w-full"
                       referrerPolicy="no-referrer"
