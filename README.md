@@ -5,7 +5,9 @@
 </p>
 
 <p align="center">
-  <a href="https://abhiram-tekulapalli.dev/"><img src="https://img.shields.io/badge/Live%20Demo-https://abhiram-tekulapalli.dev/-00D9FF?style=for-the-badge&logo=render&logoColor=white" alt="Live Demo"></a>
+  <a href="https://abhiram-tekulapalli.dev/">
+    <img src="https://img.shields.io/badge/Live_Demo-Visit_Website-00D9FF?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Live Demo">
+  </a>
   <a href="https://react.dev/"><img src="https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React"></a>
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.8-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript"></a>
   <a href="https://tailwindcss.com/"><img src="https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="Tailwind CSS"></a>
