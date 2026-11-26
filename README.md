@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="https://abhiram-portfolio-6iya.onrender.com/"><img src="https://img.shields.io/badge/Live%20Demo-abhiram--portfolio--6iya.onrender.com-00D9FF?style=for-the-badge&logo=render&logoColor=white" alt="Live Demo"></a>
+  <a href="https://abhiram-portfolio-6iya.onrender.com/"><img src="https://img.shields.io/badge/Live%20Demo-https://abhiram-tekulapalli.dev/-00D9FF?style=for-the-badge&logo=render&logoColor=white" alt="Live Demo"></a>
   <a href="https://react.dev/"><img src="https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React"></a>
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.8-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript"></a>
   <a href="https://tailwindcss.com/"><img src="https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="Tailwind CSS"></a>
@@ -276,10 +276,10 @@ Apache-2.0 — see [LICENSE](LICENSE) for details.
 **Tekulapalli Abhiram**  
 AI/ML Engineer • Full-Stack Developer
 
-- 🌐 **Portfolio**: [abhiram-portfolio-6iya.onrender.com](https://abhiram-portfolio-6iya.onrender.com/)
-- 💼 **LinkedIn**: [tekulapalli-abhiram](https://linkedin.com/in/tekulapalli-abhiram)
+- 🌐 **Portfolio**: [abhiram-portfolio-6iya.onrender.com](https://abhiram-tekulapalli.dev/)
+- 💼 **LinkedIn**: [abhiram-tekulapalli](https://linkedin.com/in/abhiram-tekulapalli)
 - 🐙 **GitHub**: [abhiram-tekulapalli](https://github.com/abhiram-tekulapalli)
-- 📧 **Email**: pokephantom98765@gmail.com
+- 📧 **Email**: abhiramtekulapalli@gmail.com
 
 ---
 
