@@ -245,10 +245,8 @@ CMD ["npm", "start"]
 ## 📸 Screenshots
 
 | Portfolio Home | Admin Dashboard | Blog Post |
-|----------------|-----------------|-----------|
-| ![Home](https://via.placeholder.com/400x250/0f172a/00d9ff?text=Portfolio+Home) | ![Admin](https://via.placeholder.com/400x250/0f172a/00d9ff?text=Admin+CMS) | ![Blog](https://via.placeholder.com/400x250/0f172a/00d9ff?text=Blog+Post) |
-
-> Add real screenshots to `public/screenshots/` and update paths above.
+|:---:|:---:|:---:|
+| ![Portfolio Home](public/screenshots/home.png) | ![Admin Dashboard](public/screenshots/admin.png) | ![Blog Post](public/screenshots/blog.png) |
 
 ---
 
